@@ -274,11 +274,11 @@ func TestParamsAmt(t *testing.T) {
 
 func TestFuncMap(t *testing.T) {
 	tests := []struct {
-		name              string
-		fn                ansi.Name
-		params            Params
+		name               string
+		fn                 ansi.Name
+		params             Params
 		startRow, startCol int
-		wantRow, wantCol  int
+		wantRow, wantCol   int
 	}{
 		// Backspace moves left, stops at column 0.
 		{"BS", ansi.BS, nil, 5, 5, 5, 4},
@@ -337,10 +337,10 @@ func TestFuncMap(t *testing.T) {
 
 func TestCursorPositioning(t *testing.T) {
 	tests := []struct {
-		name              string
-		fn                ansi.Name
-		params            Params
-		wantRow, wantCol  int
+		name             string
+		fn               ansi.Name
+		params           Params
+		wantRow, wantCol int
 	}{
 		// CUP/HVP are 1-based row;col, default 1;1 -> (0,0).
 		{"CUP home (no params)", ansi.CUP, nil, 0, 0},
@@ -869,9 +869,9 @@ func TestSGRAttributes(t *testing.T) {
 
 func TestSGRColors(t *testing.T) {
 	tests := []struct {
-		name    string
-		params  Params
-		fg, bg  int
+		name   string
+		params Params
+		fg, bg int
 	}{
 		{"basic fg/bg", Params{"31", "42"}, Red, Green},
 		{"default fg", Params{"31", "39"}, DefaultForeground, DefaultBackground},
@@ -925,7 +925,7 @@ func TestClampRow(t *testing.T) {
 		{0, 0},
 		{5, 5},
 		{9, 9},
-		{10, 9},  // >= Rows clamps to Rows-1
+		{10, 9}, // >= Rows clamps to Rows-1
 		{100, 9},
 		{-1, 0},
 		{-99, 0},
@@ -946,7 +946,7 @@ func TestClampCol(t *testing.T) {
 		{0, 0},
 		{10, 10},
 		{19, 19},
-		{20, 19},  // >= Cols clamps to Cols-1
+		{20, 19}, // >= Cols clamps to Cols-1
 		{100, 19},
 		{-1, 0},
 		{-99, 0},
