@@ -80,3 +80,15 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   has stopped), for driving an app when the exact target screen is unknown.
 * TESTED - DiffScreens(a, b) []RowDiff and FormatDiffs: compare two Dump outputs
   row by row for diffing one editor's screen against another.
+
+## Editor comparison
+* TESTED - Snapshot returns a race-safe copy of the screen cells (colors and
+  attributes, which Dump omits).  DiffCells / FormatCellDiffs compare two
+  snapshots cell by cell.
+* TESTED - editorPair drives two editors in lockstep (same size, same input);
+  use WaitFor for readiness (an editor can go quiet mid-startup), WaitQuiet to
+  let a redraw finish.
+* TESTED - govi vs nvi comparison report.  Finding so far: on an invalid ex
+  command, nvi shows the error in reverse video with a trailing period; govi
+  shows it plain with no period.  The attribute diff is needed to catch the
+  reverse video (text diff alone misses it).

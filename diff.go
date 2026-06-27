@@ -55,3 +55,99 @@ func FormatDiffs(diffs []RowDiff) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// A CellDiff is a single cell that differs between two screens (from Snapshot),
+// comparing the glyph, colors, and attributes that Dump's text omits.
+type CellDiff struct {
+	Row, Col int
+	A, B     Cell
+}
+
+// String renders the difference as "cell R,C: <A> | <B>", each side describing
+// the glyph and its rendition.
+func (d CellDiff) String() string {
+	return fmt.Sprintf("cell %d,%d: %s | %s", d.Row, d.Col, describeCell(d.A), describeCell(d.B))
+}
+
+// DiffCells compares two screen snapshots (from Snapshot) cell by cell --
+// including colors and attributes, which DiffScreens ignores -- and returns the
+// differing cells in row-major order.  Ragged sizes are compared against the
+// zero Cell.  It returns nil when the snapshots are identical.
+func DiffCells(a, b [][]Cell) []CellDiff {
+	nrows := len(a)
+	if len(b) > nrows {
+		nrows = len(b)
+	}
+	var diffs []CellDiff
+	for r := 0; r < nrows; r++ {
+		var ra, rb []Cell
+		if r < len(a) {
+			ra = a[r]
+		}
+		if r < len(b) {
+			rb = b[r]
+		}
+		ncols := len(ra)
+		if len(rb) > ncols {
+			ncols = len(rb)
+		}
+		for c := 0; c < ncols; c++ {
+			var ca, cb Cell
+			if c < len(ra) {
+				ca = ra[c]
+			}
+			if c < len(rb) {
+				cb = rb[c]
+			}
+			if ca != cb {
+				diffs = append(diffs, CellDiff{Row: r, Col: c, A: ca, B: cb})
+			}
+		}
+	}
+	return diffs
+}
+
+// FormatCellDiffs renders a slice of CellDiff as one line per difference.  It
+// returns "" when diffs is empty.
+func FormatCellDiffs(diffs []CellDiff) string {
+	if len(diffs) == 0 {
+		return ""
+	}
+	lines := make([]string, len(diffs))
+	for i, d := range diffs {
+		lines[i] = d.String()
+	}
+	return strings.Join(lines, "\n")
+}
+
+// describeCell renders a cell's glyph and the rendition that differs from the
+// default: any set attributes and any non-default colors.
+func describeCell(c Cell) string {
+	var tags []string
+	for _, a := range []struct {
+		mask uint
+		name string
+	}{
+		{BoldMask, "bold"}, {FaintMask, "faint"}, {ItalicMask, "italic"},
+		{UnderlineMask, "underline"}, {SlowBlinkMask, "blink"}, {RapidBlinkMask, "rapidblink"},
+		{InverseMask, "inverse"}, {HiddenMask, "hidden"}, {StrikethroughMask, "strike"},
+	} {
+		if c.Attributes&int(a.mask) != 0 {
+			tags = append(tags, a.name)
+		}
+	}
+	if c.Foreground != DefaultForeground {
+		tags = append(tags, fmt.Sprintf("fg=%d", c.Foreground))
+	}
+	if c.Background != DefaultBackground {
+		tags = append(tags, fmt.Sprintf("bg=%d", c.Background))
+	}
+	if c.Wide {
+		tags = append(tags, "wide")
+	}
+	s := fmt.Sprintf("%q", c.Value)
+	if len(tags) > 0 {
+		s += "[" + strings.Join(tags, ",") + "]"
+	}
+	return s
+}

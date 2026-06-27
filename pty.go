@@ -99,6 +99,20 @@ func (t *Term) Dump() []string {
 	return t.Current.Dump()
 }
 
+// Snapshot returns a copy of the current screen's cells -- including colors and
+// attributes, which Dump's text omits -- taken under the lock so it is a
+// consistent image even while the application is drawing.  Cells are values with
+// a string glyph, so the copy is independent of the live screen.
+func (t *Term) Snapshot() [][]Cell {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	rows := make([][]Cell, len(t.Current.Lines))
+	for i, line := range t.Current.Lines {
+		rows[i] = append([]Cell(nil), line...)
+	}
+	return rows
+}
+
 // WaitFor polls the screen until pred is satisfied or timeout elapses, returning
 // whether it was satisfied.  It is how to synchronize with an application that
 // renders asynchronously: send input, then wait for the screen to reflect it.
