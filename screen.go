@@ -61,6 +61,13 @@ func addAttr(bits, attr uint) uint {
 	return bits | (1 << (attr - 1))
 }
 
+// The default foreground and background colors used for blank cells and for
+// SGR "default color" (codes 39 and 49).
+const (
+	DefaultForeground = Black
+	DefaultBackground = White
+)
+
 // A Screen represents a virtual terminal screen.
 type Screen struct {
 	Rows  int
@@ -68,11 +75,13 @@ type Screen struct {
 	Row   int
 	Col   int
 	Lines []Line
+	Cur   Cell   // Current graphic rendition (the "pen") applied to new and erased cells
+	Tabs  []bool // Tabs[c] is true when column c is a tab stop
 	// TODO: Add scrolling regions
 }
 
 // A Line is a single row of Cells
-type Line []*Cell
+type Line []Cell
 
 // A Cell is a single position on the screen.
 // Colors are stored as the color index
@@ -84,24 +93,40 @@ type Cell struct {
 	Wide       bool // Wide character suffix
 }
 
+// defaultCell returns a blank cell with the default colors and no attributes.
+func defaultCell() Cell {
+	return Cell{Value: ' ', Foreground: DefaultForeground, Background: DefaultBackground}
+}
+
+// blank returns a blank cell using the screen's current graphic rendition.
+// Erase and insert operations fill vacated positions with this cell so that
+// they adopt the current background color and attributes.
+func (s *Screen) blank() Cell {
+	c := s.Cur
+	c.Value = ' '
+	c.Wide = false
+	return c
+}
+
 // New returns a new screen of the given size with every cell initialized to a
-// blank (space) on a black-on-white background.
+// blank (space) on a black-on-white background and tab stops every 8 columns.
 func New(rows, cols int) *Screen {
 	s := &Screen{
 		Rows:  rows,
 		Cols:  cols,
 		Lines: make([]Line, rows),
+		Cur:   defaultCell(),
+		Tabs:  make([]bool, cols),
 	}
 	for i := range s.Lines {
-		line := make([]*Cell, cols)
+		line := make(Line, cols)
 		for j := range line {
-			line[j] = &Cell{
-				Value:      ' ',
-				Foreground: Black,
-				Background: White,
-			}
+			line[j] = defaultCell()
 		}
 		s.Lines[i] = line
+	}
+	for c := range s.Tabs {
+		s.Tabs[c] = c%8 == 0
 	}
 	return s
 }

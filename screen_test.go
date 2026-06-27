@@ -120,9 +120,6 @@ func TestNew(t *testing.T) {
 			t.Errorf("len(Lines[%d]) = %d, want 80", i, len(line))
 		}
 		for j, cell := range line {
-			if cell == nil {
-				t.Fatalf("Lines[%d][%d] is nil", i, j)
-			}
 			if cell.Value != ' ' {
 				t.Errorf("Lines[%d][%d].Value = %q, want ' '", i, j, cell.Value)
 			}
@@ -133,6 +130,39 @@ func TestNew(t *testing.T) {
 				t.Errorf("Lines[%d][%d].Background = %d, want White", i, j, cell.Background)
 			}
 		}
+	}
+}
+
+func TestNewPenAndTabs(t *testing.T) {
+	s := New(5, 24)
+	if s.Cur != defaultCell() {
+		t.Errorf("Cur = %+v, want default cell %+v", s.Cur, defaultCell())
+	}
+	if len(s.Tabs) != 24 {
+		t.Fatalf("len(Tabs) = %d, want 24", len(s.Tabs))
+	}
+	for c, stop := range s.Tabs {
+		want := c%8 == 0
+		if stop != want {
+			t.Errorf("Tabs[%d] = %v, want %v", c, stop, want)
+		}
+	}
+}
+
+func TestBlankUsesPen(t *testing.T) {
+	s := New(5, 5)
+	s.Cur.Foreground = Red
+	s.Cur.Background = Blue
+	s.Cur.Attributes = int(BoldMask)
+	b := s.blank()
+	if b.Value != ' ' {
+		t.Errorf("blank Value = %q, want ' '", b.Value)
+	}
+	if b.Foreground != Red || b.Background != Blue {
+		t.Errorf("blank colors = %d/%d, want %d/%d", b.Foreground, b.Background, Red, Blue)
+	}
+	if b.Attributes != int(BoldMask) {
+		t.Errorf("blank Attributes = %d, want %d", b.Attributes, int(BoldMask))
 	}
 }
 
