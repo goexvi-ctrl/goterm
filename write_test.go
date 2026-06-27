@@ -16,8 +16,8 @@ func TestWriteText(t *testing.T) {
 	if n != 5 || err != nil {
 		t.Fatalf("Write returned (%d, %v), want (5, nil)", n, err)
 	}
-	if got := rowString(tm.Current.Lines[0]); got != "hello     " {
-		t.Errorf("row 0 = %q, want %q", got, "hello     ")
+	if got := tm.Current.Dump()[0]; got != "hello" {
+		t.Errorf("row 0 = %q, want %q", got, "hello")
 	}
 	if tm.Current.Row != 0 || tm.Current.Col != 5 {
 		t.Errorf("cursor = %d,%d, want 0,5", tm.Current.Row, tm.Current.Col)
@@ -35,11 +35,12 @@ func TestWriteLineFeedKeepsColumn(t *testing.T) {
 	// A bare LF moves down but does not return to column 0.
 	tm := New(3, 10)
 	tm.Write([]byte("ab\ncd"))
-	if got := rowString(tm.Current.Lines[0]); got != "ab        " {
-		t.Errorf("row 0 = %q, want %q", got, "ab        ")
+	d := tm.Current.Dump()
+	if d[0] != "ab" {
+		t.Errorf("row 0 = %q, want %q", d[0], "ab")
 	}
-	if got := rowString(tm.Current.Lines[1]); got != "  cd      " {
-		t.Errorf("row 1 = %q, want %q", got, "  cd      ")
+	if d[1] != "  cd" {
+		t.Errorf("row 1 = %q, want %q", d[1], "  cd")
 	}
 	if tm.Current.Row != 1 || tm.Current.Col != 4 {
 		t.Errorf("cursor = %d,%d, want 1,4", tm.Current.Row, tm.Current.Col)
@@ -49,8 +50,8 @@ func TestWriteLineFeedKeepsColumn(t *testing.T) {
 func TestWriteCRLF(t *testing.T) {
 	tm := New(3, 10)
 	tm.Write([]byte("ab\r\ncd"))
-	if got := rowString(tm.Current.Lines[1]); got != "cd        " {
-		t.Errorf("row 1 = %q, want %q", got, "cd        ")
+	if got := tm.Current.Dump()[1]; got != "cd" {
+		t.Errorf("row 1 = %q, want %q", got, "cd")
 	}
 	if tm.Current.Row != 1 || tm.Current.Col != 2 {
 		t.Errorf("cursor = %d,%d, want 1,2", tm.Current.Row, tm.Current.Col)
@@ -77,11 +78,12 @@ func TestWriteTab(t *testing.T) {
 func TestWriteAutoWrap(t *testing.T) {
 	tm := New(2, 3)
 	tm.Write([]byte("abcd"))
-	if got := rowString(tm.Current.Lines[0]); got != "abc" {
-		t.Errorf("row 0 = %q, want %q", got, "abc")
+	d := tm.Current.Dump()
+	if d[0] != "abc" {
+		t.Errorf("row 0 = %q, want %q", d[0], "abc")
 	}
-	if got := rowString(tm.Current.Lines[1]); got != "d  " {
-		t.Errorf("row 1 = %q, want %q", got, "d  ")
+	if d[1] != "d" {
+		t.Errorf("row 1 = %q, want %q", d[1], "d")
 	}
 	if tm.Current.Row != 1 || tm.Current.Col != 1 {
 		t.Errorf("cursor = %d,%d, want 1,1", tm.Current.Row, tm.Current.Col)
@@ -100,8 +102,8 @@ func TestWriteDeferredWrap(t *testing.T) {
 	if tm.Current.Row != 1 || tm.Current.Col != 1 {
 		t.Errorf("cursor = %d,%d, want 1,1", tm.Current.Row, tm.Current.Col)
 	}
-	if got := rowString(tm.Current.Lines[1]); got != "d  " {
-		t.Errorf("row 1 = %q, want %q", got, "d  ")
+	if got := tm.Current.Dump()[1]; got != "d" {
+		t.Errorf("row 1 = %q, want %q", got, "d")
 	}
 }
 
@@ -110,11 +112,12 @@ func TestWriteNoAutoWrap(t *testing.T) {
 	tm.Current.AutoWrap = false
 	tm.Write([]byte("abcd"))
 	// 'd' overwrites 'c' at the last column; nothing wraps.
-	if got := rowString(tm.Current.Lines[0]); got != "abd" {
-		t.Errorf("row 0 = %q, want %q", got, "abd")
+	d := tm.Current.Dump()
+	if d[0] != "abd" {
+		t.Errorf("row 0 = %q, want %q", d[0], "abd")
 	}
-	if got := rowString(tm.Current.Lines[1]); got != "   " {
-		t.Errorf("row 1 = %q, want blank", got)
+	if d[1] != "" {
+		t.Errorf("row 1 = %q, want blank", d[1])
 	}
 	if tm.Current.Row != 0 || tm.Current.Col != 2 {
 		t.Errorf("cursor = %d,%d, want 0,2", tm.Current.Row, tm.Current.Col)
@@ -126,8 +129,8 @@ func TestWriteInsertMode(t *testing.T) {
 	// of the line right.
 	tm := New(1, 5)
 	tm.Write([]byte("abc\r\x1b[4hX"))
-	if got := rowString(tm.Current.Lines[0]); got != "Xabc " {
-		t.Errorf("row 0 = %q, want %q", got, "Xabc ")
+	if got := tm.Current.Dump()[0]; got != "Xabc" {
+		t.Errorf("row 0 = %q, want %q", got, "Xabc")
 	}
 	if tm.Current.Col != 1 {
 		t.Errorf("Col = %d, want 1", tm.Current.Col)
@@ -229,10 +232,11 @@ func TestWriteScrollsAtBottom(t *testing.T) {
 	tm := New(2, 3)
 	// Three CRLF-separated lines on a 2-row screen scroll the first one off.
 	tm.Write([]byte("a\r\nb\r\nc"))
-	if got := rowString(tm.Current.Lines[0]); got != "b  " {
-		t.Errorf("row 0 = %q, want %q", got, "b  ")
+	d := tm.Current.Dump()
+	if d[0] != "b" {
+		t.Errorf("row 0 = %q, want %q", d[0], "b")
 	}
-	if got := rowString(tm.Current.Lines[1]); got != "c  " {
-		t.Errorf("row 1 = %q, want %q", got, "c  ")
+	if d[1] != "c" {
+		t.Errorf("row 1 = %q, want %q", d[1], "c")
 	}
 }
