@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
 	"github.com/pborman/ansi"
 )
 
@@ -260,12 +261,30 @@ func (s *Screen) index() {
 	}
 }
 
+// widthCond determines display width with East Asian Ambiguous characters
+// treated as width 1 (the modern UTF-8 terminal convention), independent of the
+// host locale.
+var widthCond = &runewidth.Condition{EastAsianWidth: false, StrictEmojiNeutral: true}
+
+// runeWidth reports the display width of r: 0 for a combining or zero-width
+// mark, 1 for a normal glyph, 2 for a double-width (wide) glyph.
+func runeWidth(r rune) int { return widthCond.RuneWidth(r) }
+
 // put writes a printable rune at the cursor (using the current pen) and advances
-// it.  At the right margin it performs a deferred wrap: the cursor is allowed to
-// rest one column past the last, and the wrap to the next line happens when the
-// next rune is written, and only when AutoWrap is set.  In InsertMode the rest
-// of the line is shifted right to make room.
+// it by the rune's display width.  A zero-width combining mark is appended to
+// the preceding cell instead.  A double-width glyph occupies two cells: the lead
+// cell holds the value and the next carries Wide=true; if only the last column is
+// free it wraps so the glyph is not split.  At the right margin the cursor rests
+// one column past the last and wraps (under AutoWrap) when the next glyph is
+// written.  In InsertMode the rest of the line is shifted right to make room.
 func (s *Screen) put(r rune) {
+	w := runeWidth(r)
+	if w == 0 {
+		if r >= 0x20 && r != 0x7f { // a real combining mark, not a stray control
+			s.combine(r)
+		}
+		return
+	}
 	if s.Col >= s.Cols {
 		if s.AutoWrap {
 			s.Col = 0
@@ -274,15 +293,43 @@ func (s *Screen) put(r rune) {
 			s.Col = s.Cols - 1
 		}
 	}
+	// A double-width glyph will not fit in a lone last column: wrap, leaving the
+	// last column blank, so it stays on one line.
+	if w == 2 && s.AutoWrap && s.Col == s.Cols-1 {
+		s.Lines[s.Row][s.Col] = s.blank()
+		s.Col = 0
+		s.index()
+	}
 	if s.InsertMode {
-		s.insertChars(s.Row, s.Col, 1)
+		s.insertChars(s.Row, s.Col, w)
 	}
-	cell := s.blank()
-	cell.Value = string(r)
-	s.Lines[s.Row][s.Col] = cell
-	if s.AutoWrap || s.Col < s.Cols-1 {
-		s.Col++
+	lead := s.blank()
+	lead.Value = string(r)
+	s.Lines[s.Row][s.Col] = lead
+	for i := 1; i < w && s.Col+i < s.Cols; i++ {
+		cont := s.blank()
+		cont.Value = ""
+		cont.Wide = true
+		s.Lines[s.Row][s.Col+i] = cont
 	}
+	s.Col += w
+	if !s.AutoWrap && s.Col > s.Cols-1 {
+		s.Col = s.Cols - 1
+	}
+}
+
+// combine appends a zero-width mark to the glyph in the preceding cell, stepping
+// back over a wide continuation cell to reach its lead.  With nothing before the
+// cursor the mark is dropped.
+func (s *Screen) combine(r rune) {
+	col := s.Col - 1
+	if col < 0 {
+		return
+	}
+	if col > 0 && s.Lines[s.Row][col].Wide {
+		col--
+	}
+	s.Lines[s.Row][col].Value += string(r)
 }
 
 // insertLines inserts n blank lines at row "at", pushing that row and those

@@ -47,8 +47,14 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   items so process() dispatches everything (controls and escapes) via funcMap
   and text runs are pure printable.
 
+* TESTED - Wide and combining characters: put() uses go-runewidth for display
+  width (East Asian Ambiguous = 1).  Width-2 glyphs occupy a lead cell plus a
+  Wide continuation and wrap whole at the margin; width-0 combining marks append
+  to the preceding cell's lead.
+
 ## Pending
-* Wide (double-width) characters: put() currently treats every rune as width 1.
+* Overwriting half of an existing wide glyph leaves an orphaned cell (the lead
+  or stray Wide continuation is not cleaned up).
 
 ## Deferred / out of scope
 * Save/restore cursor (DECSC/DECRC, ESC[s/u): not exported by pborman/ansi;

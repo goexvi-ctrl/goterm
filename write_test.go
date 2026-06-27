@@ -334,6 +334,67 @@ func TestWriteUTF8ByteAtATime(t *testing.T) {
 	}
 }
 
+func TestWriteWideChar(t *testing.T) {
+	tm := New(2, 5)
+	tm.Write([]byte("世")) // CJK ideograph U+4E16, double-width
+	if got := tm.Current.Dump()[0]; got != "世" {
+		t.Errorf("row 0 = %q, want %q", got, "世")
+	}
+	if tm.Current.Col != 2 {
+		t.Errorf("Col = %d, want 2 (double width)", tm.Current.Col)
+	}
+	if lead := tm.Current.Lines[0][0]; lead.Value != "世" || lead.Wide {
+		t.Errorf("lead = %+v, want the glyph and not Wide", lead)
+	}
+	if !tm.Current.Lines[0][1].Wide {
+		t.Error("continuation cell should have Wide set")
+	}
+}
+
+func TestWriteWideWrap(t *testing.T) {
+	// A double-width glyph that would straddle the right margin wraps whole,
+	// leaving the last column blank.
+	tm := New(2, 3)
+	tm.Write([]byte("ab世"))
+	d := tm.Current.Dump()
+	if d[0] != "ab" {
+		t.Errorf("row 0 = %q, want %q", d[0], "ab")
+	}
+	if d[1] != "世" {
+		t.Errorf("row 1 = %q, want %q", d[1], "世")
+	}
+	if tm.Current.Row != 1 || tm.Current.Col != 2 {
+		t.Errorf("cursor = %d,%d, want 1,2", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteCombining(t *testing.T) {
+	tm := New(1, 5)
+	tm.Write([]byte("é")) // 'e' + COMBINING ACUTE ACCENT
+	if got := tm.Current.Dump()[0]; got != "é" {
+		t.Errorf("row 0 = %q, want %q", got, "é")
+	}
+	if got := tm.Current.Lines[0][0].Value; got != "é" {
+		t.Errorf("cell value = %q, want %q", got, "é")
+	}
+	if tm.Current.Col != 1 {
+		t.Errorf("Col = %d, want 1 (a combining mark does not advance)", tm.Current.Col)
+	}
+}
+
+func TestWriteCombiningOnWide(t *testing.T) {
+	// A combining mark after a wide glyph attaches to the glyph's lead cell,
+	// stepping back over the Wide continuation.
+	tm := New(1, 5)
+	tm.Write([]byte("世́"))
+	if got := tm.Current.Lines[0][0].Value; got != "世́" {
+		t.Errorf("lead value = %q, want %q", got, "世́")
+	}
+	if tm.Current.Col != 2 {
+		t.Errorf("Col = %d, want 2", tm.Current.Col)
+	}
+}
+
 func TestWriteScrollsAtBottom(t *testing.T) {
 	tm := New(2, 3)
 	// Three CRLF-separated lines on a 2-row screen scroll the first one off.
