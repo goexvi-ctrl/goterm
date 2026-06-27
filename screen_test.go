@@ -401,6 +401,141 @@ func TestCursorRelative(t *testing.T) {
 	}
 }
 
+// markScreen sets every cell's Value to a non-blank marker so erase/scroll
+// operations can be observed by which cells become blank (space) again.
+func markScreen(s *Screen, r rune) {
+	for _, line := range s.Lines {
+		for c := range line {
+			line[c].Value = r
+		}
+	}
+}
+
+// rowPattern renders a row as '.' for blank cells and 'X' for non-blank ones.
+func rowPattern(line Line) string {
+	b := make([]byte, len(line))
+	for i, c := range line {
+		if c.Value == ' ' {
+			b[i] = '.'
+		} else {
+			b[i] = 'X'
+		}
+	}
+	return string(b)
+}
+
+func countBlanks(s *Screen) int {
+	n := 0
+	for _, line := range s.Lines {
+		for _, c := range line {
+			if c.Value == ' ' {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+func TestEraseLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		params  Params
+		pattern string
+	}{
+		{"EL default (cursor to end)", nil, "XXXXX..............."},
+		{"EL 0", Params{"0"}, "XXXXX..............."},
+		{"EL 1 (start to cursor)", Params{"1"}, "......XXXXXXXXXXXXXX"},
+		{"EL 2 (whole line)", Params{"2"}, "...................."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(10, 20)
+			markScreen(s, 'X')
+			s.Row, s.Col = 2, 5
+			funcMap[ansi.EL](s, tt.params)
+			if got := rowPattern(s.Lines[2]); got != tt.pattern {
+				t.Errorf("row 2 = %q, want %q", got, tt.pattern)
+			}
+			// Other rows must be untouched.
+			if got := rowPattern(s.Lines[0]); got != "XXXXXXXXXXXXXXXXXXXX" {
+				t.Errorf("row 0 modified: %q", got)
+			}
+		})
+	}
+}
+
+func TestEraseChar(t *testing.T) {
+	tests := []struct {
+		name    string
+		params  Params
+		pattern string
+	}{
+		{"ECH default (1)", nil, "XXXXX.XXXXXXXXXXXXXX"},
+		{"ECH 3", Params{"3"}, "XXXXX...XXXXXXXXXXXX"},
+		{"ECH clamps past edge", Params{"99"}, "XXXXX..............."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(10, 20)
+			markScreen(s, 'X')
+			s.Row, s.Col = 2, 5
+			funcMap[ansi.ECH](s, tt.params)
+			if got := rowPattern(s.Lines[2]); got != tt.pattern {
+				t.Errorf("row 2 = %q, want %q", got, tt.pattern)
+			}
+			if s.Row != 2 || s.Col != 5 {
+				t.Errorf("cursor moved to %d,%d", s.Row, s.Col)
+			}
+		})
+	}
+}
+
+func TestEraseDisplay(t *testing.T) {
+	// Cursor at row 2, col 5 on a 10x20 screen.
+	t.Run("mode 0 (cursor to end)", func(t *testing.T) {
+		s := New(10, 20)
+		markScreen(s, 'X')
+		s.Row, s.Col = 2, 5
+		funcMap[ansi.ED](s, nil)
+		if got := countBlanks(s); got != 155 {
+			t.Errorf("blanks = %d, want 155", got)
+		}
+		if got := rowPattern(s.Lines[2]); got != "XXXXX..............." {
+			t.Errorf("row 2 = %q", got)
+		}
+		if got := rowPattern(s.Lines[1]); got != "XXXXXXXXXXXXXXXXXXXX" {
+			t.Errorf("row 1 should be untouched: %q", got)
+		}
+		if got := rowPattern(s.Lines[3]); got != "...................." {
+			t.Errorf("row 3 should be cleared: %q", got)
+		}
+	})
+	t.Run("mode 1 (start to cursor)", func(t *testing.T) {
+		s := New(10, 20)
+		markScreen(s, 'X')
+		s.Row, s.Col = 2, 5
+		funcMap[ansi.ED](s, Params{"1"})
+		if got := countBlanks(s); got != 46 {
+			t.Errorf("blanks = %d, want 46", got)
+		}
+		if got := rowPattern(s.Lines[2]); got != "......XXXXXXXXXXXXXX" {
+			t.Errorf("row 2 = %q", got)
+		}
+		if got := rowPattern(s.Lines[3]); got != "XXXXXXXXXXXXXXXXXXXX" {
+			t.Errorf("row 3 should be untouched: %q", got)
+		}
+	})
+	t.Run("mode 2 (whole screen)", func(t *testing.T) {
+		s := New(10, 20)
+		markScreen(s, 'X')
+		s.Row, s.Col = 2, 5
+		funcMap[ansi.ED](s, Params{"2"})
+		if got := countBlanks(s); got != 200 {
+			t.Errorf("blanks = %d, want 200", got)
+		}
+	})
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {

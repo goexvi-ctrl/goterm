@@ -185,6 +185,25 @@ func (s *Screen) ClampCol(n int) int {
 	}
 }
 
+// fill sets columns [c0, c1] (inclusive) of row r to blank cells using the
+// current pen.  Indices are clamped to the screen; an empty range is a no-op.
+func (s *Screen) fill(r, c0, c1 int) {
+	if r < 0 || r >= s.Rows {
+		return
+	}
+	if c0 < 0 {
+		c0 = 0
+	}
+	if c1 > s.Cols-1 {
+		c1 = s.Cols - 1
+	}
+	line := s.Lines[r]
+	b := s.blank()
+	for c := c0; c <= c1; c++ {
+		line[c] = b
+	}
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -212,4 +231,37 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	ansi.HPB: func(s *Screen, p Params) { s.Col = s.ClampCol(s.Col - p.Amt(0)) },
 	ansi.VPR: func(s *Screen, p Params) { s.Row = s.ClampRow(s.Row + p.Amt(0)) },
 	ansi.VPB: func(s *Screen, p Params) { s.Row = s.ClampRow(s.Row - p.Amt(0)) },
+
+	// Erase.  The cursor does not move.  ED/EL select a region by mode (0 =
+	// cursor to end, 1 = start to cursor, 2 = all); the mode defaults to 0.
+	ansi.ED: func(s *Screen, p Params) {
+		switch p.Int(0) {
+		case 1: // start of screen through cursor
+			for r := 0; r < s.Row; r++ {
+				s.fill(r, 0, s.Cols-1)
+			}
+			s.fill(s.Row, 0, s.Col)
+		case 2, 3: // whole screen (3 also clears scrollback, which we lack)
+			for r := 0; r < s.Rows; r++ {
+				s.fill(r, 0, s.Cols-1)
+			}
+		default: // 0: cursor through end of screen
+			s.fill(s.Row, s.Col, s.Cols-1)
+			for r := s.Row + 1; r < s.Rows; r++ {
+				s.fill(r, 0, s.Cols-1)
+			}
+		}
+	},
+	ansi.EL: func(s *Screen, p Params) {
+		switch p.Int(0) {
+		case 1: // start of line through cursor
+			s.fill(s.Row, 0, s.Col)
+		case 2: // whole line
+			s.fill(s.Row, 0, s.Cols-1)
+		default: // 0: cursor through end of line
+			s.fill(s.Row, s.Col, s.Cols-1)
+		}
+	},
+	// ECH erases n characters starting at the cursor (default 1).
+	ansi.ECH: func(s *Screen, p Params) { s.fill(s.Row, s.Col, s.Col+p.Amt(0)-1) },
 }

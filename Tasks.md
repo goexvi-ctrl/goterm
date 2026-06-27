@@ -15,7 +15,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   CPL, CR.
 * TESTED - Cursor positioning: CUP, HVP, VPA, HPA.
 * TESTED - Cursor relative position: HPR, HPB, VPR, VPB.
-* NEW - Erase: ED, EL, ECH.
+* TESTED - Erase: ED, EL, ECH.
 * NEW - Scroll and line feed: NEL, RI, SU, SD.
 * NEW - Insert/delete lines: IL, DL.
 * NEW - Insert/delete characters: ICH, DCH.
