@@ -1,14 +1,22 @@
 package goterm
 
-// A Term represents a terminal with a primary and an alternate screen buffer.
-// Both screens share the same dimensions; Current points at the screen that
-// input is currently applied to.  Each Screen holds a back-pointer to its Term
-// (Screen.term) so sequence handlers can switch the active buffer.
 // chanBuf is the buffer size for the Term's outbound channel.  Buffering lets a
 // single-goroutine test feed input that triggers a response and then read the
 // response afterward without deadlocking.
 const chanBuf = 256
 
+// A Term represents a terminal with a primary and an alternate screen buffer.
+// Both screens share the same dimensions; Current points at the screen that
+// input is currently applied to.  Each Screen holds a back-pointer to its Term
+// (Screen.term) so sequence handlers can switch the active buffer.
+//
+// Concurrency: input is processed synchronously in the caller's goroutine with
+// no background work, so the screen and Bell may be read safely once a feed
+// call has returned.  Reading that state from a different goroutine requires a
+// happens-before edge with the feed call (a channel, mutex, or WaitGroup).  Out
+// is the exception: a feed that emits more bytes than the buffer holds blocks
+// until Out is drained, so drain Out (ideally from another goroutine) rather
+// than relying on the buffer.
 type Term struct {
 	Primary   *Screen
 	Alternate *Screen
@@ -19,9 +27,17 @@ type Term struct {
 	// Out is the terminal's single return byte stream to the program, like the
 	// one serial line a real terminal has.  Query responses (DSR cursor
 	// position, DA) multiplex onto it along with anything else the terminal
-	// emits.  It is buffered and a caller is expected to drain it.  (No
-	// producers wire in yet; the future parse loop and DSR/DA handlers will.)
+	// emits.  It is buffered and a caller is expected to drain it.  All sends
+	// go through Send so the blocking policy lives in one place.  (No producers
+	// wire in yet; the future parse loop and DSR/DA handlers will.)
 	Out chan []byte
+}
+
+// Send writes data onto the terminal's return stream (Out).  It is the single
+// choke point for Out sends so the blocking/draining policy can evolve in one
+// place; for now it is a plain buffered send.
+func (t *Term) Send(data []byte) {
+	t.Out <- data
 }
 
 // ClearBell resets the bell counter to zero.

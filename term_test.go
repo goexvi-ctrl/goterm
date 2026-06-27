@@ -108,9 +108,9 @@ func TestNewTermOut(t *testing.T) {
 	if tm.Out == nil {
 		t.Fatal("Out channel must be initialized")
 	}
-	// Buffered: a send must not block without a concurrent reader, and the
-	// bytes round-trip intact.
-	tm.Out <- []byte("\x1b[1;1R")
+	// Buffered: Send must not block without a concurrent reader, and the bytes
+	// round-trip intact.
+	tm.Send([]byte("\x1b[1;1R"))
 	if got := string(<-tm.Out); got != "\x1b[1;1R" {
 		t.Errorf("Out delivered %q, want %q", got, "\x1b[1;1R")
 	}
