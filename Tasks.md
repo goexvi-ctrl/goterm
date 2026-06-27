@@ -62,3 +62,10 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * Truecolor SGR (38;2;r;g;b / 48;2): Cell stores a palette index only.
 * Scrolling regions (DECSTBM): operations currently act on the full screen.
 * REP (repeat): depends on the write path.
+
+## PTY / application launching
+* TESTED - Term.Start(name, args...) runs an application on a creack/pty PTY
+  sized to the screen; an output pump feeds the app's bytes through Write and a
+  forwarder drains Out (responses + Send keystrokes) to the app's input.  Write
+  now takes a mutex; Dump/WaitFor are the locked screen accessors.  Smoke test:
+  /bin/cat echoes typed input onto the screen.

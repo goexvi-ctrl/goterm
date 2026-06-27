@@ -1,5 +1,7 @@
 package goterm
 
+import "sync"
+
 // chanBuf is the buffer size for the Term's outbound channel.  Buffering lets a
 // single-goroutine test feed input that triggers a response and then read the
 // response afterward without deadlocking.
@@ -10,13 +12,11 @@ const chanBuf = 256
 // input is currently applied to.  Each Screen holds a back-pointer to its Term
 // (Screen.term) so sequence handlers can switch the active buffer.
 //
-// Concurrency: input is processed synchronously in the caller's goroutine with
-// no background work, so the screen and Bell may be read safely once a feed
-// call has returned.  Reading that state from a different goroutine requires a
-// happens-before edge with the feed call (a channel, mutex, or WaitGroup).  Out
-// is the exception: a feed that emits more bytes than the buffer holds blocks
-// until Out is drained, so drain Out (ideally from another goroutine) rather
-// than relying on the buffer.
+// Concurrency: Write processes input synchronously and takes mu, so direct
+// Write callers see the screen settle when Write returns.  Once Start launches
+// an application, a background goroutine pumps its output through Write, so the
+// screen must be read with the locking accessors (Dump, WaitFor), not by
+// touching Current directly.
 type Term struct {
 	Primary   *Screen
 	Alternate *Screen
@@ -30,9 +30,11 @@ type Term struct {
 	// one serial line a real terminal has.  Query responses (DSR cursor
 	// position, DA) multiplex onto it along with anything else the terminal
 	// emits.  It is buffered and a caller is expected to drain it.  All sends
-	// go through Send so the blocking policy lives in one place.  (No producers
-	// wire in yet; the future parse loop and DSR/DA handlers will.)
+	// go through Send so the blocking policy lives in one place.
 	Out chan []byte
+
+	mu  sync.Mutex  // guards Write and screen reads while an application runs on the PTY
+	pty *ptySession // the running application, if any (see Start)
 }
 
 // Send writes data onto the terminal's return stream (Out).  It is the single

@@ -18,6 +18,8 @@ var streamDecoder = ansi.Decoder{UTF8: true, C0: true}
 // Processing is synchronous (see Term): once Write returns, the screen and Bell
 // reflect all of data and nothing runs in the background.
 func (t *Term) Write(data []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	in := data
 	if len(t.pending) > 0 {
 		in = append(t.pending, data...)
