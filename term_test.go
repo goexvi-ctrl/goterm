@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewTerm(t *testing.T) {
-	tm := NewTerm(10, 20)
+	tm := New(10, 20)
 	if tm.Primary == nil || tm.Alternate == nil {
 		t.Fatal("Primary/Alternate must be non-nil")
 	}
@@ -28,7 +28,7 @@ func TestNewTerm(t *testing.T) {
 }
 
 func TestAltScreen1049(t *testing.T) {
-	tm := NewTerm(5, 10)
+	tm := New(5, 10)
 	// Put a marker on the primary screen and move its cursor.
 	tm.Primary.Lines[0][0].Value = 'P'
 	tm.Primary.Row, tm.Primary.Col = 3, 4
@@ -38,8 +38,9 @@ func TestAltScreen1049(t *testing.T) {
 	if tm.Current != tm.Alternate {
 		t.Fatal("SM ?1049 should make the alternate screen current")
 	}
-	if tm.savedRow != 3 || tm.savedCol != 4 {
-		t.Errorf("saved cursor = %d,%d, want 3,4", tm.savedRow, tm.savedCol)
+	// The primary keeps its own cursor untouched (it is the "saved" cursor).
+	if tm.Primary.Row != 3 || tm.Primary.Col != 4 {
+		t.Errorf("primary cursor = %d,%d, want 3,4", tm.Primary.Row, tm.Primary.Col)
 	}
 	if tm.Current.Row != 0 || tm.Current.Col != 0 {
 		t.Errorf("alt cursor = %d,%d, want home", tm.Current.Row, tm.Current.Col)
@@ -48,13 +49,14 @@ func TestAltScreen1049(t *testing.T) {
 		t.Errorf("alternate should be cleared on entry, blanks = %d, want 50", countBlanks(tm.Alternate))
 	}
 
-	// Scribble on the alternate screen, then leave.
+	// Scribble on the alternate screen and move its cursor, then leave.
 	tm.Current.Lines[1][1].Value = 'A'
 	tm.Current.Row, tm.Current.Col = 2, 2
 	funcMap[ansi.RM](tm.Current, Params{"?1049"})
 	if tm.Current != tm.Primary {
 		t.Fatal("RM ?1049 should restore the primary screen")
 	}
+	// With restore, the primary's preserved cursor stays put (not the alt's).
 	if tm.Current.Row != 3 || tm.Current.Col != 4 {
 		t.Errorf("restored cursor = %d,%d, want 3,4", tm.Current.Row, tm.Current.Col)
 	}
@@ -63,27 +65,29 @@ func TestAltScreen1049(t *testing.T) {
 	}
 }
 
-func TestAltScreen47NoSaveRestore(t *testing.T) {
-	tm := NewTerm(5, 10)
+func TestAltScreen47CursorCarriesOver(t *testing.T) {
+	tm := New(5, 10)
 	tm.Primary.Row, tm.Primary.Col = 3, 4
 
 	funcMap[ansi.SM](tm.Current, Params{"?47"})
 	if tm.Current != tm.Alternate {
 		t.Fatal("SM ?47 should switch to the alternate screen")
 	}
-	// ?47 does not save the cursor.
-	if tm.savedRow != 0 || tm.savedCol != 0 {
-		t.Errorf("?47 should not save the cursor, got %d,%d", tm.savedRow, tm.savedCol)
-	}
 
+	// Move the cursor on the alternate screen, then leave without restore.
+	tm.Current.Row, tm.Current.Col = 1, 2
 	funcMap[ansi.RM](tm.Current, Params{"?47"})
 	if tm.Current != tm.Primary {
 		t.Fatal("RM ?47 should switch back to the primary screen")
 	}
+	// Without restore the cursor carries over from the alternate screen.
+	if tm.Current.Row != 1 || tm.Current.Col != 2 {
+		t.Errorf("carried-over cursor = %d,%d, want 1,2", tm.Current.Row, tm.Current.Col)
+	}
 }
 
 func TestAltScreenIdempotent(t *testing.T) {
-	tm := NewTerm(5, 10)
+	tm := New(5, 10)
 	funcMap[ansi.SM](tm.Current, Params{"?1049"})
 	tm.Current.Lines[0][0].Value = 'A'
 	// A second enter must not clear what we just wrote.
@@ -102,7 +106,7 @@ func TestAltScreenIdempotent(t *testing.T) {
 func TestAltScreenStandaloneNoop(t *testing.T) {
 	// A standalone screen has no Term; the alt-screen modes must be ignored
 	// without panicking.
-	s := New(5, 10)
+	s := NewScreen(5, 10)
 	funcMap[ansi.SM](s, Params{"?1049"})
 	funcMap[ansi.RM](s, Params{"?1049"})
 }

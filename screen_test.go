@@ -96,9 +96,9 @@ func TestMaskConstants(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	s := New(24, 80)
+	s := NewScreen(24, 80)
 	if s == nil {
-		t.Fatal("New returned nil")
+		t.Fatal("NewScreen returned nil")
 	}
 	if s.Rows != 24 {
 		t.Errorf("Rows = %d, want 24", s.Rows)
@@ -134,7 +134,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewPenAndTabs(t *testing.T) {
-	s := New(5, 24)
+	s := NewScreen(5, 24)
 	if s.Cur != defaultCell() {
 		t.Errorf("Cur = %+v, want default cell %+v", s.Cur, defaultCell())
 	}
@@ -150,7 +150,7 @@ func TestNewPenAndTabs(t *testing.T) {
 }
 
 func TestBlankUsesPen(t *testing.T) {
-	s := New(5, 5)
+	s := NewScreen(5, 5)
 	s.Cur.Foreground = Red
 	s.Cur.Background = Blue
 	s.Cur.Attributes = int(BoldMask)
@@ -167,12 +167,12 @@ func TestBlankUsesPen(t *testing.T) {
 }
 
 func TestNewSmall(t *testing.T) {
-	s := New(1, 1)
+	s := NewScreen(1, 1)
 	if s.Rows != 1 || s.Cols != 1 {
-		t.Errorf("New(1,1): Rows=%d Cols=%d, want 1 1", s.Rows, s.Cols)
+		t.Errorf("NewScreen(1,1): Rows=%d Cols=%d, want 1 1", s.Rows, s.Cols)
 	}
 	if len(s.Lines) != 1 || len(s.Lines[0]) != 1 {
-		t.Errorf("New(1,1): Lines shape wrong")
+		t.Errorf("NewScreen(1,1): Lines shape wrong")
 	}
 }
 
@@ -324,7 +324,7 @@ func TestFuncMap(t *testing.T) {
 			if !ok {
 				t.Fatalf("funcMap has no entry for %v", tt.fn)
 			}
-			s := New(10, 20)
+			s := NewScreen(10, 20)
 			s.Row, s.Col = tt.startRow, tt.startCol
 			fn(s, tt.params)
 			if s.Row != tt.wantRow || s.Col != tt.wantCol {
@@ -360,7 +360,7 @@ func TestCursorPositioning(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(10, 20)
+			s := NewScreen(10, 20)
 			s.Row, s.Col = 5, 5 // known starting point
 			funcMap[tt.fn](s, tt.params)
 			if s.Row != tt.wantRow || s.Col != tt.wantCol {
@@ -390,7 +390,7 @@ func TestCursorRelative(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(10, 20)
+			s := NewScreen(10, 20)
 			s.Row, s.Col = 5, 5
 			funcMap[tt.fn](s, tt.params)
 			if s.Row != tt.wantRow || s.Col != tt.wantCol {
@@ -449,7 +449,7 @@ func TestEraseLine(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(10, 20)
+			s := NewScreen(10, 20)
 			markScreen(s, 'X')
 			s.Row, s.Col = 2, 5
 			funcMap[ansi.EL](s, tt.params)
@@ -476,7 +476,7 @@ func TestEraseChar(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(10, 20)
+			s := NewScreen(10, 20)
 			markScreen(s, 'X')
 			s.Row, s.Col = 2, 5
 			funcMap[ansi.ECH](s, tt.params)
@@ -493,7 +493,7 @@ func TestEraseChar(t *testing.T) {
 func TestEraseDisplay(t *testing.T) {
 	// Cursor at row 2, col 5 on a 10x20 screen.
 	t.Run("mode 0 (cursor to end)", func(t *testing.T) {
-		s := New(10, 20)
+		s := NewScreen(10, 20)
 		markScreen(s, 'X')
 		s.Row, s.Col = 2, 5
 		funcMap[ansi.ED](s, nil)
@@ -511,7 +511,7 @@ func TestEraseDisplay(t *testing.T) {
 		}
 	})
 	t.Run("mode 1 (start to cursor)", func(t *testing.T) {
-		s := New(10, 20)
+		s := NewScreen(10, 20)
 		markScreen(s, 'X')
 		s.Row, s.Col = 2, 5
 		funcMap[ansi.ED](s, Params{"1"})
@@ -526,7 +526,7 @@ func TestEraseDisplay(t *testing.T) {
 		}
 	})
 	t.Run("mode 2 (whole screen)", func(t *testing.T) {
-		s := New(10, 20)
+		s := NewScreen(10, 20)
 		markScreen(s, 'X')
 		s.Row, s.Col = 2, 5
 		funcMap[ansi.ED](s, Params{"2"})
@@ -550,7 +550,7 @@ func labelRows(s *Screen) {
 func rowLabel(s *Screen, r int) rune { return s.Lines[r][0].Value }
 
 func TestScrollUp(t *testing.T) {
-	s := New(10, 5)
+	s := NewScreen(10, 5)
 	labelRows(s)
 	s.Row, s.Col = 4, 2
 	funcMap[ansi.SU](s, Params{"2"})
@@ -571,7 +571,7 @@ func TestScrollUp(t *testing.T) {
 }
 
 func TestScrollDown(t *testing.T) {
-	s := New(10, 5)
+	s := NewScreen(10, 5)
 	labelRows(s)
 	funcMap[ansi.SD](s, Params{"2"})
 	for r := 0; r < 2; r++ {
@@ -588,7 +588,7 @@ func TestScrollDown(t *testing.T) {
 
 func TestNextLine(t *testing.T) {
 	t.Run("middle moves down to column 0", func(t *testing.T) {
-		s := New(10, 5)
+		s := NewScreen(10, 5)
 		labelRows(s)
 		s.Row, s.Col = 2, 3
 		funcMap[ansi.NEL](s, nil)
@@ -600,7 +600,7 @@ func TestNextLine(t *testing.T) {
 		}
 	})
 	t.Run("bottom scrolls up", func(t *testing.T) {
-		s := New(10, 5)
+		s := NewScreen(10, 5)
 		labelRows(s)
 		s.Row, s.Col = 9, 3
 		funcMap[ansi.NEL](s, nil)
@@ -618,7 +618,7 @@ func TestNextLine(t *testing.T) {
 
 func TestReverseIndex(t *testing.T) {
 	t.Run("middle moves up, column unchanged", func(t *testing.T) {
-		s := New(10, 5)
+		s := NewScreen(10, 5)
 		labelRows(s)
 		s.Row, s.Col = 2, 3
 		funcMap[ansi.RI](s, nil)
@@ -627,7 +627,7 @@ func TestReverseIndex(t *testing.T) {
 		}
 	})
 	t.Run("top scrolls down", func(t *testing.T) {
-		s := New(10, 5)
+		s := NewScreen(10, 5)
 		labelRows(s)
 		s.Row, s.Col = 0, 3
 		funcMap[ansi.RI](s, nil)
@@ -644,7 +644,7 @@ func TestReverseIndex(t *testing.T) {
 }
 
 func TestInsertLines(t *testing.T) {
-	s := New(10, 5)
+	s := NewScreen(10, 5)
 	labelRows(s)
 	s.Row, s.Col = 3, 4
 	funcMap[ansi.IL](s, Params{"2"})
@@ -670,7 +670,7 @@ func TestInsertLines(t *testing.T) {
 }
 
 func TestDeleteLines(t *testing.T) {
-	s := New(10, 5)
+	s := NewScreen(10, 5)
 	labelRows(s)
 	s.Row, s.Col = 3, 4
 	funcMap[ansi.DL](s, Params{"2"})
@@ -723,7 +723,7 @@ func TestInsertChars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(3, 10)
+			s := NewScreen(3, 10)
 			labelCols(s, 1)
 			s.Row, s.Col = 1, 3
 			funcMap[ansi.ICH](s, tt.params)
@@ -749,7 +749,7 @@ func TestDeleteChars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(3, 10)
+			s := NewScreen(3, 10)
 			labelCols(s, 1)
 			s.Row, s.Col = 1, 3
 			funcMap[ansi.DCH](s, tt.params)
@@ -775,7 +775,7 @@ func TestTabForward(t *testing.T) {
 		{19, 19},
 	}
 	for _, tt := range tests {
-		s := New(3, 20)
+		s := NewScreen(3, 20)
 		s.Col = tt.start
 		funcMap[ansi.HT](s, nil)
 		if s.Col != tt.want {
@@ -785,7 +785,7 @@ func TestTabForward(t *testing.T) {
 }
 
 func TestTabForwardN(t *testing.T) {
-	s := New(3, 20)
+	s := NewScreen(3, 20)
 	s.Col = 0
 	funcMap[ansi.CHT](s, Params{"2"})
 	if s.Col != 16 {
@@ -794,7 +794,7 @@ func TestTabForwardN(t *testing.T) {
 }
 
 func TestTabBackward(t *testing.T) {
-	s := New(3, 20)
+	s := NewScreen(3, 20)
 	s.Col = 17
 	funcMap[ansi.CBT](s, Params{"2"})
 	if s.Col != 8 {
@@ -808,7 +808,7 @@ func TestTabBackward(t *testing.T) {
 }
 
 func TestTabSet(t *testing.T) {
-	s := New(3, 20)
+	s := NewScreen(3, 20)
 	s.Col = 5
 	funcMap[ansi.HTS](s, nil)
 	s.Col = 0
@@ -820,7 +820,7 @@ func TestTabSet(t *testing.T) {
 
 func TestTabClear(t *testing.T) {
 	t.Run("clear stop at cursor", func(t *testing.T) {
-		s := New(3, 20)
+		s := NewScreen(3, 20)
 		s.Col = 8
 		funcMap[ansi.TBC](s, nil) // clear stop at col 8
 		s.Col = 0
@@ -830,7 +830,7 @@ func TestTabClear(t *testing.T) {
 		}
 	})
 	t.Run("clear all stops", func(t *testing.T) {
-		s := New(3, 20)
+		s := NewScreen(3, 20)
 		funcMap[ansi.TBC](s, Params{"3"})
 		s.Col = 0
 		funcMap[ansi.HT](s, nil)
@@ -841,7 +841,7 @@ func TestTabClear(t *testing.T) {
 }
 
 func TestSGRAttributes(t *testing.T) {
-	s := New(3, 10)
+	s := NewScreen(3, 10)
 
 	funcMap[ansi.SGR](s, Params{"1", "3"}) // bold + italic
 	if want := int(BoldMask | ItalicMask); s.Cur.Attributes != want {
@@ -883,7 +883,7 @@ func TestSGRColors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := New(3, 10)
+			s := NewScreen(3, 10)
 			funcMap[ansi.SGR](s, tt.params)
 			if s.Cur.Foreground != tt.fg || s.Cur.Background != tt.bg {
 				t.Errorf("fg/bg = %d/%d, want %d/%d",
@@ -896,7 +896,7 @@ func TestSGRColors(t *testing.T) {
 func TestSGRTruecolorConsumed(t *testing.T) {
 	// 38;2;r;g;b is not representable; it must be skipped without misreading
 	// the trailing parameter (here 1 = bold).
-	s := New(3, 10)
+	s := NewScreen(3, 10)
 	funcMap[ansi.SGR](s, Params{"38", "2", "10", "20", "30", "1"})
 	if s.Cur.Foreground != DefaultForeground {
 		t.Errorf("truecolor should leave fg unchanged, got %d", s.Cur.Foreground)
@@ -908,7 +908,7 @@ func TestSGRTruecolorConsumed(t *testing.T) {
 
 func TestSGRAffectsErase(t *testing.T) {
 	// The pen set by SGR must be used when erasing.
-	s := New(3, 10)
+	s := NewScreen(3, 10)
 	funcMap[ansi.SGR](s, Params{"44"}) // background blue
 	funcMap[ansi.EL](s, Params{"2"})   // clear the cursor's line
 	if got := s.Lines[0][0].Background; got != Blue {
@@ -917,7 +917,7 @@ func TestSGRAffectsErase(t *testing.T) {
 }
 
 func TestModeDefaults(t *testing.T) {
-	s := New(3, 10)
+	s := NewScreen(3, 10)
 	if !s.CursorVisible {
 		t.Error("CursorVisible should default to true")
 	}
@@ -961,7 +961,7 @@ func TestModeParams(t *testing.T) {
 
 func TestSetResetMode(t *testing.T) {
 	t.Run("cursor visibility (?25)", func(t *testing.T) {
-		s := New(3, 10)
+		s := NewScreen(3, 10)
 		funcMap[ansi.RM](s, Params{"?25"})
 		if s.CursorVisible {
 			t.Error("RM ?25 should hide the cursor")
@@ -972,7 +972,7 @@ func TestSetResetMode(t *testing.T) {
 		}
 	})
 	t.Run("autowrap (?7)", func(t *testing.T) {
-		s := New(3, 10)
+		s := NewScreen(3, 10)
 		funcMap[ansi.RM](s, Params{"?7"})
 		if s.AutoWrap {
 			t.Error("RM ?7 should disable autowrap")
@@ -983,7 +983,7 @@ func TestSetResetMode(t *testing.T) {
 		}
 	})
 	t.Run("insert mode (4)", func(t *testing.T) {
-		s := New(3, 10)
+		s := NewScreen(3, 10)
 		funcMap[ansi.SM](s, Params{"4"})
 		if !s.InsertMode {
 			t.Error("SM 4 should enable insert mode")
@@ -994,7 +994,7 @@ func TestSetResetMode(t *testing.T) {
 		}
 	})
 	t.Run("multiple private modes (?7;25)", func(t *testing.T) {
-		s := New(3, 10)
+		s := NewScreen(3, 10)
 		funcMap[ansi.RM](s, Params{"?7;25"})
 		if s.AutoWrap || s.CursorVisible {
 			t.Errorf("RM ?7;25 should clear both: AutoWrap=%v CursorVisible=%v",
@@ -1003,7 +1003,7 @@ func TestSetResetMode(t *testing.T) {
 	})
 	t.Run("ANSI mode number is not a private mode", func(t *testing.T) {
 		// "4" (IRM) must not be confused with private mode 4.
-		s := New(3, 10)
+		s := NewScreen(3, 10)
 		funcMap[ansi.SM](s, Params{"4"})
 		if !s.InsertMode {
 			t.Error("SM 4 should set IRM")
@@ -1013,7 +1013,7 @@ func TestSetResetMode(t *testing.T) {
 		}
 	})
 	t.Run("unknown mode is ignored", func(t *testing.T) {
-		s := New(3, 10)
+		s := NewScreen(3, 10)
 		funcMap[ansi.SM](s, Params{"?2004"}) // bracketed paste, unsupported
 		if !s.CursorVisible || !s.AutoWrap || s.InsertMode {
 			t.Error("unknown mode should leave all flags at defaults")
@@ -1022,7 +1022,7 @@ func TestSetResetMode(t *testing.T) {
 }
 
 func TestClampRow(t *testing.T) {
-	s := New(10, 20)
+	s := NewScreen(10, 20)
 	tests := []struct {
 		n    int
 		want int
@@ -1043,7 +1043,7 @@ func TestClampRow(t *testing.T) {
 }
 
 func TestClampCol(t *testing.T) {
-	s := New(10, 20)
+	s := NewScreen(10, 20)
 	tests := []struct {
 		n    int
 		want int

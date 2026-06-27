@@ -85,7 +85,7 @@ type Screen struct {
 	AutoWrap      bool // DECAWM (?7): wrap to the next line at the right margin
 	InsertMode    bool // IRM (4): printed characters shift the line right
 
-	term *Term // owning terminal, if any (set by NewTerm); nil for a standalone screen
+	term *Term // owning terminal, if any (set by New); nil for a standalone screen
 	// TODO: Add scrolling regions
 }
 
@@ -117,9 +117,9 @@ func (s *Screen) blank() Cell {
 	return c
 }
 
-// New returns a new screen of the given size with every cell initialized to a
-// blank (space) on a black-on-white background and tab stops every 8 columns.
-func New(rows, cols int) *Screen {
+// NewScreen returns a new screen of the given size with every cell initialized
+// to a blank (space) on a black-on-white background and tab stops every 8 columns.
+func NewScreen(rows, cols int) *Screen {
 	s := &Screen{
 		Rows:          rows,
 		Cols:          cols,
@@ -483,16 +483,17 @@ func (s *Screen) setModes(p Params, on bool) {
 }
 
 // switchAlternate enters (on=true) or exits the alternate screen via the owning
-// Term.  When save is true the cursor is saved on entry and restored on exit
-// (?1049 semantics).  It is a no-op for a standalone screen with no Term.
-func (s *Screen) switchAlternate(on, save bool) {
+// Term.  When restore is true the primary's cursor is preserved across the
+// round trip (?1049 semantics).  It is a no-op for a standalone screen with no
+// Term.
+func (s *Screen) switchAlternate(on, restore bool) {
 	if s.term == nil {
 		return
 	}
 	if on {
-		s.term.enterAlternate(save)
+		s.term.enterAlternate()
 	} else {
-		s.term.exitAlternate(save)
+		s.term.exitAlternate(restore)
 	}
 }
 
