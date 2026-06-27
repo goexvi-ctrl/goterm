@@ -30,7 +30,7 @@ func TestNewTerm(t *testing.T) {
 func TestAltScreen1049(t *testing.T) {
 	tm := New(5, 10)
 	// Put a marker on the primary screen and move its cursor.
-	tm.Primary.Lines[0][0].Value = 'P'
+	tm.Primary.Lines[0][0].Value = "P"
 	tm.Primary.Row, tm.Primary.Col = 3, 4
 
 	// Enter the alternate screen.
@@ -50,7 +50,7 @@ func TestAltScreen1049(t *testing.T) {
 	}
 
 	// Scribble on the alternate screen and move its cursor, then leave.
-	tm.Current.Lines[1][1].Value = 'A'
+	tm.Current.Lines[1][1].Value = "A"
 	tm.Current.Row, tm.Current.Col = 2, 2
 	funcMap[ansi.RM](tm.Current, Params{"?1049"})
 	if tm.Current != tm.Primary {
@@ -60,7 +60,7 @@ func TestAltScreen1049(t *testing.T) {
 	if tm.Current.Row != 3 || tm.Current.Col != 4 {
 		t.Errorf("restored cursor = %d,%d, want 3,4", tm.Current.Row, tm.Current.Col)
 	}
-	if tm.Primary.Lines[0][0].Value != 'P' {
+	if tm.Primary.Lines[0][0].Value != "P" {
 		t.Error("primary contents must survive the alternate-screen round trip")
 	}
 }
@@ -89,10 +89,10 @@ func TestAltScreen47CursorCarriesOver(t *testing.T) {
 func TestAltScreenIdempotent(t *testing.T) {
 	tm := New(5, 10)
 	funcMap[ansi.SM](tm.Current, Params{"?1049"})
-	tm.Current.Lines[0][0].Value = 'A'
+	tm.Current.Lines[0][0].Value = "A"
 	// A second enter must not clear what we just wrote.
 	funcMap[ansi.SM](tm.Current, Params{"?1049"})
-	if tm.Current.Lines[0][0].Value != 'A' {
+	if tm.Current.Lines[0][0].Value != "A" {
 		t.Error("re-entering the alternate screen should be a no-op")
 	}
 	// Exiting twice should stay on primary.

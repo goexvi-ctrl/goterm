@@ -96,7 +96,7 @@ type Line []Cell
 // A Cell is a single position on the screen.
 // Colors are stored as the color index
 type Cell struct {
-	Value      rune
+	Value      string // the glyph (a base rune plus any combining marks); "" in a Wide continuation cell
 	Foreground int
 	Background int
 	Attributes int  // Bit field of attributes
@@ -105,7 +105,7 @@ type Cell struct {
 
 // defaultCell returns a blank cell with the default colors and no attributes.
 func defaultCell() Cell {
-	return Cell{Value: ' ', Foreground: DefaultForeground, Background: DefaultBackground}
+	return Cell{Value: " ", Foreground: DefaultForeground, Background: DefaultBackground}
 }
 
 // blank returns a blank cell using the screen's current graphic rendition.
@@ -113,7 +113,7 @@ func defaultCell() Cell {
 // they adopt the current background color and attributes.
 func (s *Screen) blank() Cell {
 	c := s.Cur
-	c.Value = ' '
+	c.Value = " "
 	c.Wide = false
 	return c
 }
@@ -278,7 +278,7 @@ func (s *Screen) put(r rune) {
 		s.insertChars(s.Row, s.Col, 1)
 	}
 	cell := s.blank()
-	cell.Value = r
+	cell.Value = string(r)
 	s.Lines[s.Row][s.Col] = cell
 	if s.AutoWrap || s.Col < s.Cols-1 {
 		s.Col++

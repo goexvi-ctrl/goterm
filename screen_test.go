@@ -120,7 +120,7 @@ func TestNew(t *testing.T) {
 			t.Errorf("len(Lines[%d]) = %d, want 80", i, len(line))
 		}
 		for j, cell := range line {
-			if cell.Value != ' ' {
+			if cell.Value != " " {
 				t.Errorf("Lines[%d][%d].Value = %q, want ' '", i, j, cell.Value)
 			}
 			if cell.Foreground != Black {
@@ -155,7 +155,7 @@ func TestBlankUsesPen(t *testing.T) {
 	s.Cur.Background = Blue
 	s.Cur.Attributes = int(BoldMask)
 	b := s.blank()
-	if b.Value != ' ' {
+	if b.Value != " " {
 		t.Errorf("blank Value = %q, want ' '", b.Value)
 	}
 	if b.Foreground != Red || b.Background != Blue {
@@ -163,6 +163,17 @@ func TestBlankUsesPen(t *testing.T) {
 	}
 	if b.Attributes != int(BoldMask) {
 		t.Errorf("blank Attributes = %d, want %d", b.Attributes, int(BoldMask))
+	}
+}
+
+func TestCellHoldsCluster(t *testing.T) {
+	// A cell Value is a string, so it can hold a base rune plus a combining
+	// mark as one grapheme cluster, and Dump emits the whole cluster.
+	s := NewScreen(1, 3)
+	cluster := "e" + string(rune(0x0301)) // base e + COMBINING ACUTE ACCENT
+	s.Lines[0][0].Value = cluster
+	if got := s.Dump()[0]; got != cluster {
+		t.Errorf("Dump = %q, want %q", got, cluster)
 	}
 }
 
@@ -406,7 +417,7 @@ func TestCursorRelative(t *testing.T) {
 func markScreen(s *Screen, r rune) {
 	for _, line := range s.Lines {
 		for c := range line {
-			line[c].Value = r
+			line[c].Value = string(r)
 		}
 	}
 }
@@ -415,7 +426,7 @@ func markScreen(s *Screen, r rune) {
 func rowPattern(line Line) string {
 	b := make([]byte, len(line))
 	for i, c := range line {
-		if c.Value == ' ' {
+		if c.Value == " " {
 			b[i] = '.'
 		} else {
 			b[i] = 'X'
@@ -428,7 +439,7 @@ func countBlanks(s *Screen) int {
 	n := 0
 	for _, line := range s.Lines {
 		for _, c := range line {
-			if c.Value == ' ' {
+			if c.Value == " " {
 				n++
 			}
 		}
@@ -541,13 +552,19 @@ func TestEraseDisplay(t *testing.T) {
 func labelRows(s *Screen) {
 	for r, line := range s.Lines {
 		for c := range line {
-			line[c].Value = rune('0' + r)
+			line[c].Value = string(rune('0' + r))
 		}
 	}
 }
 
-// rowLabel returns the marker in column 0 of row r (' ' for a blank row).
-func rowLabel(s *Screen, r int) rune { return s.Lines[r][0].Value }
+// rowLabel returns the marker rune in column 0 of row r (' ' for a blank row).
+func rowLabel(s *Screen, r int) rune {
+	v := s.Lines[r][0].Value
+	if v == "" {
+		return ' '
+	}
+	return []rune(v)[0]
+}
 
 func TestScrollUp(t *testing.T) {
 	s := NewScreen(10, 5)
@@ -729,16 +746,16 @@ func TestDeleteLines(t *testing.T) {
 // be read back as a string.
 func labelCols(s *Screen, r int) {
 	for c := range s.Lines[r] {
-		s.Lines[r][c].Value = rune('a' + c)
+		s.Lines[r][c].Value = string(rune('a' + c))
 	}
 }
 
 func rowString(line Line) string {
-	b := make([]rune, len(line))
-	for i, c := range line {
-		b[i] = c.Value
+	var out string
+	for _, c := range line {
+		out += c.Value
 	}
-	return string(b)
+	return out
 }
 
 func TestInsertChars(t *testing.T) {

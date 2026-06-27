@@ -70,7 +70,7 @@ func TestWriteTab(t *testing.T) {
 	tm := New(3, 20)
 	tm.Write([]byte("a\tb"))
 	// 'a' at col 0, tab advances to col 8, 'b' at col 8.
-	if got := tm.Current.Lines[0][8].Value; got != 'b' {
+	if got := tm.Current.Lines[0][8].Value; got != "b" {
 		t.Errorf("cell 0,8 = %q, want 'b'", got)
 	}
 }
@@ -145,7 +145,7 @@ func TestWriteSGRPen(t *testing.T) {
 		t.Errorf("pen fg = %d, want Red", tm.Current.Cur.Foreground)
 	}
 	cell := tm.Current.Lines[0][0]
-	if cell.Value != 'A' || cell.Foreground != Red {
+	if cell.Value != "A" || cell.Foreground != Red {
 		t.Errorf("cell = %+v, want 'A' in Red", cell)
 	}
 }
@@ -164,7 +164,7 @@ func TestWriteAltScreenSwitch(t *testing.T) {
 	if tm.Current != tm.Alternate {
 		t.Fatal("?1049h should switch to the alternate screen")
 	}
-	if tm.Alternate.Lines[0][0].Value != 'x' {
+	if tm.Alternate.Lines[0][0].Value != "x" {
 		t.Error("text after the switch should land on the alternate screen")
 	}
 }
@@ -299,7 +299,7 @@ func TestWriteUTF8(t *testing.T) {
 	if tm.Current.Col != 3 {
 		t.Errorf("Col = %d, want 3", tm.Current.Col)
 	}
-	if tm.Current.Lines[0][1].Value != '─' {
+	if tm.Current.Lines[0][1].Value != "─" {
 		t.Errorf("cell 0,1 = %q, want '─'", tm.Current.Lines[0][1].Value)
 	}
 }

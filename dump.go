@@ -1,7 +1,6 @@
 package goterm
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -14,7 +13,7 @@ func (s *Screen) Dump() []string {
 		var b strings.Builder
 		for _, c := range line {
 			if !c.Wide {
-				fmt.Fprintf(&b, "%c", rune(c.Value))
+				b.WriteString(c.Value)
 			}
 		}
 		lines = append(lines, strings.TrimRight(b.String(), " "))
