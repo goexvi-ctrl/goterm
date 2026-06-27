@@ -4,8 +4,8 @@ package goterm
 // Both screens share the same dimensions; Current points at the screen that
 // input is currently applied to.  Each Screen holds a back-pointer to its Term
 // (Screen.term) so sequence handlers can switch the active buffer.
-// chanBuf is the buffer size for the Term's outbound channels.  Buffering lets
-// a single-goroutine test feed input that triggers a response and then read the
+// chanBuf is the buffer size for the Term's outbound channel.  Buffering lets a
+// single-goroutine test feed input that triggers a response and then read the
 // response afterward without deadlocking.
 const chanBuf = 256
 
@@ -16,11 +16,12 @@ type Term struct {
 
 	Bell int // count of BEL (^G) received since the last ClearBell
 
-	// Outbound byte streams from the terminal toward the program; both are
-	// buffered, and a caller is expected to drain them.  (No producers wire
-	// into these yet; the future parse loop and the DSR/DA handlers will.)
-	Out       chan []byte // write side: bytes the terminal sends back (e.g. keystrokes/echo)
-	Responses chan []byte // answers to queries such as DSR (cursor position) and DA
+	// Out is the terminal's single return byte stream to the program, like the
+	// one serial line a real terminal has.  Query responses (DSR cursor
+	// position, DA) multiplex onto it along with anything else the terminal
+	// emits.  It is buffered and a caller is expected to drain it.  (No
+	// producers wire in yet; the future parse loop and DSR/DA handlers will.)
+	Out chan []byte
 }
 
 // ClearBell resets the bell counter to zero.
@@ -34,7 +35,6 @@ func New(rows, cols int) *Term {
 		Primary:   NewScreen(rows, cols),
 		Alternate: NewScreen(rows, cols),
 		Out:       make(chan []byte, chanBuf),
-		Responses: make(chan []byte, chanBuf),
 	}
 	t.Primary.term = t
 	t.Alternate.term = t
