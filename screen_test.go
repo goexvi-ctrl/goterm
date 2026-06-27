@@ -1,0 +1,348 @@
+package goterm
+
+import (
+	"testing"
+
+	"github.com/pborman/ansi"
+)
+
+func TestColorConstants(t *testing.T) {
+	if Black != 0 {
+		t.Errorf("Black = %d, want 0", Black)
+	}
+	if Red != 1 {
+		t.Errorf("Red = %d, want 1", Red)
+	}
+	if Green != 2 {
+		t.Errorf("Green = %d, want 2", Green)
+	}
+	if Yellow != 3 {
+		t.Errorf("Yellow = %d, want 3", Yellow)
+	}
+	if Blue != 4 {
+		t.Errorf("Blue = %d, want 4", Blue)
+	}
+	if Magenta != 5 {
+		t.Errorf("Magenta = %d, want 5", Magenta)
+	}
+	if Cyan != 6 {
+		t.Errorf("Cyan = %d, want 6", Cyan)
+	}
+	if White != 7 {
+		t.Errorf("White = %d, want 7", White)
+	}
+}
+
+func TestOffsetConstants(t *testing.T) {
+	if Foreground != 30 {
+		t.Errorf("Foreground = %d, want 30", Foreground)
+	}
+	if Background != 40 {
+		t.Errorf("Background = %d, want 40", Background)
+	}
+	if Bright != 60 {
+		t.Errorf("Bright = %d, want 60", Bright)
+	}
+}
+
+func TestAttrConstants(t *testing.T) {
+	tests := []struct {
+		name string
+		got  uint
+		want uint
+	}{
+		{"NormalAttr", NormalAttr, 0},
+		{"BoldAttr", BoldAttr, 1},
+		{"FaintAttr", FaintAttr, 2},
+		{"ItalicAttr", ItalicAttr, 3},
+		{"UnderlineAttr", UnderlineAttr, 4},
+		{"SlowBlinkAttr", SlowBlinkAttr, 5},
+		{"RapidBlinkAttr", RapidBlinkAttr, 6},
+		{"InverseAttr", InverseAttr, 7},
+		{"HiddenAttr", HiddenAttr, 8},
+		{"StrikethroughAttr", StrikethroughAttr, 9},
+		{"BrightAttr", BrightAttr, 10},
+	}
+	for _, tt := range tests {
+		if tt.got != tt.want {
+			t.Errorf("%s = %d, want %d", tt.name, tt.got, tt.want)
+		}
+	}
+}
+
+func TestMaskConstants(t *testing.T) {
+	tests := []struct {
+		name string
+		mask uint
+		attr uint
+	}{
+		{"BoldMask", BoldMask, BoldAttr},
+		{"FaintMask", FaintMask, FaintAttr},
+		{"ItalicMask", ItalicMask, ItalicAttr},
+		{"UnderlineMask", UnderlineMask, UnderlineAttr},
+		{"SlowBlinkMask", SlowBlinkMask, SlowBlinkAttr},
+		{"RapidBlinkMask", RapidBlinkMask, RapidBlinkAttr},
+		{"InverseMask", InverseMask, InverseAttr},
+		{"HiddenMask", HiddenMask, HiddenAttr},
+		{"StrikethroughMask", StrikethroughMask, StrikethroughAttr},
+		{"BrightMask", BrightMask, BrightAttr},
+	}
+	for _, tt := range tests {
+		want := uint(1) << (tt.attr - 1)
+		if tt.mask != want {
+			t.Errorf("%s = %d, want %d", tt.name, tt.mask, want)
+		}
+	}
+}
+
+func TestNew(t *testing.T) {
+	s := New(24, 80)
+	if s == nil {
+		t.Fatal("New returned nil")
+	}
+	if s.Rows != 24 {
+		t.Errorf("Rows = %d, want 24", s.Rows)
+	}
+	if s.Cols != 80 {
+		t.Errorf("Cols = %d, want 80", s.Cols)
+	}
+	if s.Row != 0 {
+		t.Errorf("Row = %d, want 0", s.Row)
+	}
+	if s.Col != 0 {
+		t.Errorf("Col = %d, want 0", s.Col)
+	}
+	if len(s.Lines) != 24 {
+		t.Fatalf("len(Lines) = %d, want 24", len(s.Lines))
+	}
+	for i, line := range s.Lines {
+		if len(line) != 80 {
+			t.Errorf("len(Lines[%d]) = %d, want 80", i, len(line))
+		}
+		for j, cell := range line {
+			if cell == nil {
+				t.Fatalf("Lines[%d][%d] is nil", i, j)
+			}
+			if cell.Value != ' ' {
+				t.Errorf("Lines[%d][%d].Value = %q, want ' '", i, j, cell.Value)
+			}
+			if cell.Foreground != Black {
+				t.Errorf("Lines[%d][%d].Foreground = %d, want Black", i, j, cell.Foreground)
+			}
+			if cell.Background != White {
+				t.Errorf("Lines[%d][%d].Background = %d, want White", i, j, cell.Background)
+			}
+		}
+	}
+}
+
+func TestNewSmall(t *testing.T) {
+	s := New(1, 1)
+	if s.Rows != 1 || s.Cols != 1 {
+		t.Errorf("New(1,1): Rows=%d Cols=%d, want 1 1", s.Rows, s.Cols)
+	}
+	if len(s.Lines) != 1 || len(s.Lines[0]) != 1 {
+		t.Errorf("New(1,1): Lines shape wrong")
+	}
+}
+
+func TestAddAttrNormal(t *testing.T) {
+	if got := addAttr(0xFF, NormalAttr); got != 0 {
+		t.Errorf("addAttr(0xFF, NormalAttr) = %d, want 0", got)
+	}
+}
+
+func TestAddAttrSetsbit(t *testing.T) {
+	attrs := []uint{BoldAttr, FaintAttr, ItalicAttr, UnderlineAttr,
+		SlowBlinkAttr, RapidBlinkAttr, InverseAttr, HiddenAttr,
+		StrikethroughAttr, BrightAttr}
+	for _, attr := range attrs {
+		got := addAttr(0, attr)
+		want := uint(1) << (attr - 1)
+		if got != want {
+			t.Errorf("addAttr(0, %d) = %b, want %b", attr, got, want)
+		}
+	}
+}
+
+func TestAddAttrAccumulates(t *testing.T) {
+	bits := addAttr(0, BoldAttr)
+	bits = addAttr(bits, ItalicAttr)
+	if bits&(1<<(BoldAttr-1)) == 0 {
+		t.Error("Bold bit lost after adding Italic")
+	}
+	if bits&(1<<(ItalicAttr-1)) == 0 {
+		t.Error("Italic bit not set")
+	}
+}
+
+func TestAddAttrIdempotent(t *testing.T) {
+	once := addAttr(0, BoldAttr)
+	twice := addAttr(once, BoldAttr)
+	if once != twice {
+		t.Errorf("addAttr idempotent: %b != %b", once, twice)
+	}
+}
+
+func TestParamsInt(t *testing.T) {
+	p := Params{"3", "42", "bad", ""}
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{0, 3},
+		{1, 42},
+		{2, 0}, // non-integer returns 0
+		{3, 0}, // empty string returns 0
+		{-1, 0},
+		{4, 0}, // out of range
+	}
+	for _, tt := range tests {
+		if got := p.Int(tt.n); got != tt.want {
+			t.Errorf("Params.Int(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestParamsStr(t *testing.T) {
+	p := Params{"hello", "world"}
+	tests := []struct {
+		n    int
+		want string
+	}{
+		{0, "hello"},
+		{1, "world"},
+		{-1, ""},
+		{2, ""},
+	}
+	for _, tt := range tests {
+		if got := p.Str(tt.n); got != tt.want {
+			t.Errorf("Params.Str(%d) = %q, want %q", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestParamsAmt(t *testing.T) {
+	p := Params{"3", "0", "bad", ""}
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{0, 3},  // explicit value
+		{1, 1},  // zero defaults to 1
+		{2, 1},  // non-integer defaults to 1
+		{3, 1},  // empty defaults to 1
+		{-1, 1}, // out of range defaults to 1
+		{4, 1},  // out of range defaults to 1
+	}
+	for _, tt := range tests {
+		if got := p.Amt(tt.n); got != tt.want {
+			t.Errorf("Params.Amt(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestFuncMap(t *testing.T) {
+	tests := []struct {
+		name              string
+		fn                ansi.Name
+		params            Params
+		startRow, startCol int
+		wantRow, wantCol  int
+	}{
+		// Backspace moves left, stops at column 0.
+		{"BS", ansi.BS, nil, 5, 5, 5, 4},
+		{"BS at left edge", ansi.BS, nil, 5, 0, 5, 0},
+
+		// Cursor up decreases the row; default amount is 1.
+		{"CUU default", ansi.CUU, nil, 5, 3, 4, 3},
+		{"CUU n", ansi.CUU, Params{"3"}, 5, 3, 2, 3},
+		{"CUU clamps to top", ansi.CUU, Params{"99"}, 5, 3, 0, 3},
+
+		// Cursor down increases the row; default amount is 1.
+		{"CUD default", ansi.CUD, nil, 5, 3, 6, 3},
+		{"CUD n", ansi.CUD, Params{"3"}, 5, 3, 8, 3},
+		// Row clamps against Rows (10), not Cols (20).
+		{"CUD clamps to bottom", ansi.CUD, Params{"99"}, 5, 3, 9, 3},
+
+		// Cursor forward/back move the column.
+		{"CUF default", ansi.CUF, nil, 5, 3, 5, 4},
+		{"CUF n", ansi.CUF, Params{"4"}, 5, 3, 5, 7},
+		{"CUF clamps to right", ansi.CUF, Params{"99"}, 5, 3, 5, 19},
+		{"CUB default", ansi.CUB, nil, 5, 3, 5, 2},
+		{"CUB clamps to left", ansi.CUB, Params{"99"}, 5, 3, 5, 0},
+
+		// Cursor horizontal absolute is 1-based: column 1 -> index 0.
+		{"CHA default", ansi.CHA, nil, 5, 7, 5, 0},
+		{"CHA col 1", ansi.CHA, Params{"1"}, 5, 7, 5, 0},
+		{"CHA col 5", ansi.CHA, Params{"5"}, 5, 7, 5, 4},
+		{"CHA clamps", ansi.CHA, Params{"99"}, 5, 7, 5, 19},
+
+		// Next/previous line move the row and reset the column.
+		{"CNL default", ansi.CNL, nil, 5, 7, 6, 0},
+		{"CNL n", ansi.CNL, Params{"2"}, 5, 7, 7, 0},
+		{"CNL clamps", ansi.CNL, Params{"99"}, 5, 7, 9, 0},
+		{"CPL default", ansi.CPL, nil, 5, 7, 4, 0},
+		{"CPL clamps", ansi.CPL, Params{"99"}, 5, 7, 0, 0},
+
+		// Carriage return resets the column only.
+		{"CR", ansi.CR, nil, 5, 7, 5, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fn, ok := funcMap[tt.fn]
+			if !ok {
+				t.Fatalf("funcMap has no entry for %v", tt.fn)
+			}
+			s := New(10, 20)
+			s.Row, s.Col = tt.startRow, tt.startCol
+			fn(s, tt.params)
+			if s.Row != tt.wantRow || s.Col != tt.wantCol {
+				t.Errorf("%s: got Row=%d Col=%d, want Row=%d Col=%d",
+					tt.name, s.Row, s.Col, tt.wantRow, tt.wantCol)
+			}
+		})
+	}
+}
+
+func TestClampRow(t *testing.T) {
+	s := New(10, 20)
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{0, 0},
+		{5, 5},
+		{9, 9},
+		{10, 9},  // >= Rows clamps to Rows-1
+		{100, 9},
+		{-1, 0},
+		{-99, 0},
+	}
+	for _, tt := range tests {
+		if got := s.ClampRow(tt.n); got != tt.want {
+			t.Errorf("ClampRow(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
+
+func TestClampCol(t *testing.T) {
+	s := New(10, 20)
+	tests := []struct {
+		n    int
+		want int
+	}{
+		{0, 0},
+		{10, 10},
+		{19, 19},
+		{20, 19},  // >= Cols clamps to Cols-1
+		{100, 19},
+		{-1, 0},
+		{-99, 0},
+	}
+	for _, tt := range tests {
+		if got := s.ClampCol(tt.n); got != tt.want {
+			t.Errorf("ClampCol(%d) = %d, want %d", tt.n, got, tt.want)
+		}
+	}
+}
