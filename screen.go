@@ -198,4 +198,11 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	ansi.CNL: func(s *Screen, p Params) { s.Col = 0; s.Row = s.ClampRow(s.Row + p.Amt(0)) },
 	ansi.CPL: func(s *Screen, p Params) { s.Col = 0; s.Row = s.ClampRow(s.Row - p.Amt(0)) },
 	ansi.CR:  func(s *Screen, p Params) { s.Col = 0 },
+
+	// Absolute cursor positioning.  CUP and HVP take a 1-based row and column;
+	// VPA and HPA set a single 1-based axis.  A missing parameter defaults to 1.
+	ansi.CUP: func(s *Screen, p Params) { s.Row = s.ClampRow(p.Amt(0) - 1); s.Col = s.ClampCol(p.Amt(1) - 1) },
+	ansi.HVP: func(s *Screen, p Params) { s.Row = s.ClampRow(p.Amt(0) - 1); s.Col = s.ClampCol(p.Amt(1) - 1) },
+	ansi.VPA: func(s *Screen, p Params) { s.Row = s.ClampRow(p.Amt(0) - 1) },
+	ansi.HPA: func(s *Screen, p Params) { s.Col = s.ClampCol(p.Amt(0) - 1) },
 }

@@ -13,7 +13,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 ## Sequence groups
 * DONE - Cursor movement (pre-existing): BS, CUU, CUD, CUF, CUB, CHA, CNL,
   CPL, CR.
-* NEW - Cursor positioning: CUP, HVP, VPA, HPA.
+* TESTED - Cursor positioning: CUP, HVP, VPA, HPA.
 * NEW - Cursor relative position: HPR, HPB, VPR, VPB.
 * NEW - Erase: ED, EL, ECH.
 * NEW - Scroll and line feed: NEL, RI, SU, SD.

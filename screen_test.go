@@ -335,6 +335,42 @@ func TestFuncMap(t *testing.T) {
 	}
 }
 
+func TestCursorPositioning(t *testing.T) {
+	tests := []struct {
+		name              string
+		fn                ansi.Name
+		params            Params
+		wantRow, wantCol  int
+	}{
+		// CUP/HVP are 1-based row;col, default 1;1 -> (0,0).
+		{"CUP home (no params)", ansi.CUP, nil, 0, 0},
+		{"CUP 1;1", ansi.CUP, Params{"1", "1"}, 0, 0},
+		{"CUP 5;10", ansi.CUP, Params{"5", "10"}, 4, 9},
+		{"CUP row only", ansi.CUP, Params{"5"}, 4, 0},
+		{"CUP clamps", ansi.CUP, Params{"99", "99"}, 9, 19},
+		{"HVP 3;4", ansi.HVP, Params{"3", "4"}, 2, 3},
+		{"HVP home", ansi.HVP, nil, 0, 0},
+		// VPA sets the row only, HPA the column only.
+		{"VPA 7", ansi.VPA, Params{"7"}, 6, 5},
+		{"VPA default", ansi.VPA, nil, 0, 5},
+		{"VPA clamps", ansi.VPA, Params{"99"}, 9, 5},
+		{"HPA 7", ansi.HPA, Params{"7"}, 5, 6},
+		{"HPA default", ansi.HPA, nil, 5, 0},
+		{"HPA clamps", ansi.HPA, Params{"99"}, 5, 19},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(10, 20)
+			s.Row, s.Col = 5, 5 // known starting point
+			funcMap[tt.fn](s, tt.params)
+			if s.Row != tt.wantRow || s.Col != tt.wantCol {
+				t.Errorf("%s: got Row=%d Col=%d, want Row=%d Col=%d",
+					tt.name, s.Row, s.Col, tt.wantRow, tt.wantCol)
+			}
+		})
+	}
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {
