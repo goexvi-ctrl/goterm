@@ -204,6 +204,40 @@ func (s *Screen) fill(r, c0, c1 int) {
 	}
 }
 
+// scrollUp moves the screen contents up by n rows, discarding the top n rows
+// and blanking n new rows at the bottom.  The cursor is not moved.
+func (s *Screen) scrollUp(n int) {
+	if n <= 0 {
+		return
+	}
+	if n > s.Rows {
+		n = s.Rows
+	}
+	for r := 0; r < s.Rows-n; r++ {
+		copy(s.Lines[r], s.Lines[r+n])
+	}
+	for r := s.Rows - n; r < s.Rows; r++ {
+		s.fill(r, 0, s.Cols-1)
+	}
+}
+
+// scrollDown moves the screen contents down by n rows, discarding the bottom n
+// rows and blanking n new rows at the top.  The cursor is not moved.
+func (s *Screen) scrollDown(n int) {
+	if n <= 0 {
+		return
+	}
+	if n > s.Rows {
+		n = s.Rows
+	}
+	for r := s.Rows - 1; r >= n; r-- {
+		copy(s.Lines[r], s.Lines[r-n])
+	}
+	for r := 0; r < n; r++ {
+		s.fill(r, 0, s.Cols-1)
+	}
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -264,4 +298,25 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	},
 	// ECH erases n characters starting at the cursor (default 1).
 	ansi.ECH: func(s *Screen, p Params) { s.fill(s.Row, s.Col, s.Col+p.Amt(0)-1) },
+
+	// Scrolling and line feeds.  SU/SD scroll the contents without moving the
+	// cursor.  NEL moves to the start of the next line, scrolling up at the
+	// bottom; RI moves up one line, scrolling down at the top.
+	ansi.SU: func(s *Screen, p Params) { s.scrollUp(p.Amt(0)) },
+	ansi.SD: func(s *Screen, p Params) { s.scrollDown(p.Amt(0)) },
+	ansi.NEL: func(s *Screen, p Params) {
+		s.Col = 0
+		if s.Row >= s.Rows-1 {
+			s.scrollUp(1)
+		} else {
+			s.Row++
+		}
+	},
+	ansi.RI: func(s *Screen, p Params) {
+		if s.Row <= 0 {
+			s.scrollDown(1)
+		} else {
+			s.Row--
+		}
+	},
 }

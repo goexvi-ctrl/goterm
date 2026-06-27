@@ -16,7 +16,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Cursor positioning: CUP, HVP, VPA, HPA.
 * TESTED - Cursor relative position: HPR, HPB, VPR, VPB.
 * TESTED - Erase: ED, EL, ECH.
-* NEW - Scroll and line feed: NEL, RI, SU, SD.
+* TESTED - Scroll and line feed: NEL, RI, SU, SD.
 * NEW - Insert/delete lines: IL, DL.
 * NEW - Insert/delete characters: ICH, DCH.
 * NEW - Tabs: HT, CHT, CBT, HTS, TBC.

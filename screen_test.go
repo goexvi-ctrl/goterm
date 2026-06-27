@@ -536,6 +536,113 @@ func TestEraseDisplay(t *testing.T) {
 	})
 }
 
+// labelRows sets every cell in row r to the digit rune for r (rows 0-9), so
+// scrolling can be tracked by reading any column of a row.
+func labelRows(s *Screen) {
+	for r, line := range s.Lines {
+		for c := range line {
+			line[c].Value = rune('0' + r)
+		}
+	}
+}
+
+// rowLabel returns the marker in column 0 of row r (' ' for a blank row).
+func rowLabel(s *Screen, r int) rune { return s.Lines[r][0].Value }
+
+func TestScrollUp(t *testing.T) {
+	s := New(10, 5)
+	labelRows(s)
+	s.Row, s.Col = 4, 2
+	funcMap[ansi.SU](s, Params{"2"})
+	// Rows shift up by 2; bottom two rows blank; cursor unchanged.
+	for r := 0; r < 8; r++ {
+		if got := rowLabel(s, r); got != rune('0'+r+2) {
+			t.Errorf("row %d label = %q, want %q", r, got, rune('0'+r+2))
+		}
+	}
+	for r := 8; r < 10; r++ {
+		if got := rowLabel(s, r); got != ' ' {
+			t.Errorf("row %d label = %q, want blank", r, got)
+		}
+	}
+	if s.Row != 4 || s.Col != 2 {
+		t.Errorf("cursor moved to %d,%d", s.Row, s.Col)
+	}
+}
+
+func TestScrollDown(t *testing.T) {
+	s := New(10, 5)
+	labelRows(s)
+	funcMap[ansi.SD](s, Params{"2"})
+	for r := 0; r < 2; r++ {
+		if got := rowLabel(s, r); got != ' ' {
+			t.Errorf("row %d label = %q, want blank", r, got)
+		}
+	}
+	for r := 2; r < 10; r++ {
+		if got := rowLabel(s, r); got != rune('0'+r-2) {
+			t.Errorf("row %d label = %q, want %q", r, got, rune('0'+r-2))
+		}
+	}
+}
+
+func TestNextLine(t *testing.T) {
+	t.Run("middle moves down to column 0", func(t *testing.T) {
+		s := New(10, 5)
+		labelRows(s)
+		s.Row, s.Col = 2, 3
+		funcMap[ansi.NEL](s, nil)
+		if s.Row != 3 || s.Col != 0 {
+			t.Errorf("cursor = %d,%d, want 3,0", s.Row, s.Col)
+		}
+		if rowLabel(s, 0) != '0' {
+			t.Error("contents should not scroll in the middle")
+		}
+	})
+	t.Run("bottom scrolls up", func(t *testing.T) {
+		s := New(10, 5)
+		labelRows(s)
+		s.Row, s.Col = 9, 3
+		funcMap[ansi.NEL](s, nil)
+		if s.Row != 9 || s.Col != 0 {
+			t.Errorf("cursor = %d,%d, want 9,0", s.Row, s.Col)
+		}
+		if got := rowLabel(s, 0); got != '1' {
+			t.Errorf("row 0 after scroll = %q, want '1'", got)
+		}
+		if got := rowLabel(s, 9); got != ' ' {
+			t.Errorf("row 9 after scroll = %q, want blank", got)
+		}
+	})
+}
+
+func TestReverseIndex(t *testing.T) {
+	t.Run("middle moves up, column unchanged", func(t *testing.T) {
+		s := New(10, 5)
+		labelRows(s)
+		s.Row, s.Col = 2, 3
+		funcMap[ansi.RI](s, nil)
+		if s.Row != 1 || s.Col != 3 {
+			t.Errorf("cursor = %d,%d, want 1,3", s.Row, s.Col)
+		}
+	})
+	t.Run("top scrolls down", func(t *testing.T) {
+		s := New(10, 5)
+		labelRows(s)
+		s.Row, s.Col = 0, 3
+		funcMap[ansi.RI](s, nil)
+		if s.Row != 0 || s.Col != 3 {
+			t.Errorf("cursor = %d,%d, want 0,3", s.Row, s.Col)
+		}
+		if got := rowLabel(s, 0); got != ' ' {
+			t.Errorf("row 0 after scroll = %q, want blank", got)
+		}
+		if got := rowLabel(s, 1); got != '0' {
+			t.Errorf("row 1 after scroll = %q, want '0'", got)
+		}
+	})
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {
