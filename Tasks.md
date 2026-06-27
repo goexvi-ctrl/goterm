@@ -14,7 +14,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * DONE - Cursor movement (pre-existing): BS, CUU, CUD, CUF, CUB, CHA, CNL,
   CPL, CR.
 * TESTED - Cursor positioning: CUP, HVP, VPA, HPA.
-* NEW - Cursor relative position: HPR, HPB, VPR, VPB.
+* TESTED - Cursor relative position: HPR, HPB, VPR, VPB.
 * NEW - Erase: ED, EL, ECH.
 * NEW - Scroll and line feed: NEL, RI, SU, SD.
 * NEW - Insert/delete lines: IL, DL.

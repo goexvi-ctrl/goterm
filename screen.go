@@ -205,4 +205,11 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	ansi.HVP: func(s *Screen, p Params) { s.Row = s.ClampRow(p.Amt(0) - 1); s.Col = s.ClampCol(p.Amt(1) - 1) },
 	ansi.VPA: func(s *Screen, p Params) { s.Row = s.ClampRow(p.Amt(0) - 1) },
 	ansi.HPA: func(s *Screen, p Params) { s.Col = s.ClampCol(p.Amt(0) - 1) },
+
+	// Relative cursor positioning by a single axis.  HPR/VPR move forward
+	// (right/down), HPB/VPB backward (left/up).  These mirror CUF/CUB/CUD/CUU.
+	ansi.HPR: func(s *Screen, p Params) { s.Col = s.ClampCol(s.Col + p.Amt(0)) },
+	ansi.HPB: func(s *Screen, p Params) { s.Col = s.ClampCol(s.Col - p.Amt(0)) },
+	ansi.VPR: func(s *Screen, p Params) { s.Row = s.ClampRow(s.Row + p.Amt(0)) },
+	ansi.VPB: func(s *Screen, p Params) { s.Row = s.ClampRow(s.Row - p.Amt(0)) },
 }

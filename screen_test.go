@@ -371,6 +371,36 @@ func TestCursorPositioning(t *testing.T) {
 	}
 }
 
+func TestCursorRelative(t *testing.T) {
+	tests := []struct {
+		name             string
+		fn               ansi.Name
+		params           Params
+		wantRow, wantCol int
+	}{
+		{"HPR default", ansi.HPR, nil, 5, 6},
+		{"HPR 3", ansi.HPR, Params{"3"}, 5, 8},
+		{"HPR clamps", ansi.HPR, Params{"99"}, 5, 19},
+		{"HPB default", ansi.HPB, nil, 5, 4},
+		{"HPB clamps", ansi.HPB, Params{"99"}, 5, 0},
+		{"VPR default", ansi.VPR, nil, 6, 5},
+		{"VPR clamps", ansi.VPR, Params{"99"}, 9, 5},
+		{"VPB default", ansi.VPB, nil, 4, 5},
+		{"VPB clamps", ansi.VPB, Params{"99"}, 0, 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(10, 20)
+			s.Row, s.Col = 5, 5
+			funcMap[tt.fn](s, tt.params)
+			if s.Row != tt.wantRow || s.Col != tt.wantCol {
+				t.Errorf("%s: got Row=%d Col=%d, want Row=%d Col=%d",
+					tt.name, s.Row, s.Col, tt.wantRow, tt.wantCol)
+			}
+		})
+	}
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {
