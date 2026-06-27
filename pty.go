@@ -25,6 +25,9 @@ type ptySession struct {
 // keystrokes with Send, and stop it with Close.
 func (t *Term) Start(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
+	// Advertise TERM=ansi: this emulator implements the ansi terminfo, so the
+	// application emits the sequences we support.
+	cmd.Env = append(os.Environ(), "TERM=ansi")
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{
 		Rows: uint16(t.Primary.Rows),
 		Cols: uint16(t.Primary.Cols),

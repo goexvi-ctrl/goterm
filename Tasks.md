@@ -69,3 +69,8 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   forwarder drains Out (responses + Send keystrokes) to the app's input.  Write
   now takes a mutex; Dump/WaitFor are the locked screen accessors.  Smoke test:
   /bin/cat echoes typed input onto the screen.
+* TESTED - Start advertises TERM=ansi (this emulator implements the ansi
+  terminfo) so applications emit sequences we support.
+* TESTED - nvi end to end: launch nvi, insert two lines (i...Esc, o...Esc), and
+  confirm the screen renders "Hello, world" / "second line" over tildes.  This
+  is the project goal: observe what an editor draws and assert on it.
