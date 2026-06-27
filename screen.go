@@ -509,7 +509,14 @@ func (s *Screen) clear() {
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
 var funcMap = map[ansi.Name]func(*Screen, Params){
-	ansi.BS:  func(s *Screen, p Params) { s.Col = s.ClampCol(s.Col - 1) },
+	ansi.BS: func(s *Screen, p Params) { s.Col = s.ClampCol(s.Col - 1) },
+	// BEL has no screen effect; it bumps the owning Term's bell counter so
+	// tests can observe it.  A standalone screen (no Term) ignores it.
+	ansi.BEL: func(s *Screen, p Params) {
+		if s.term != nil {
+			s.term.Bell++
+		}
+	},
 	ansi.CUU: func(s *Screen, p Params) { s.Row = s.ClampRow(s.Row - p.Amt(0)) },
 	ansi.CUD: func(s *Screen, p Params) { s.Row = s.ClampRow(s.Row + p.Amt(0)) },
 	ansi.CUF: func(s *Screen, p Params) { s.Col = s.ClampCol(s.Col + p.Amt(0)) },
@@ -584,6 +591,15 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 			s.scrollDown(1)
 		} else {
 			s.Row--
+		}
+	},
+	// LF (Index) moves down one line, scrolling at the bottom.  Unlike NEL it
+	// does not change the column.
+	ansi.LF: func(s *Screen, p Params) {
+		if s.Row >= s.Rows-1 {
+			s.scrollUp(1)
+		} else {
+			s.Row++
 		}
 	},
 

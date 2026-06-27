@@ -8,6 +8,13 @@ type Term struct {
 	Primary   *Screen
 	Alternate *Screen
 	Current   *Screen
+
+	Bell int // count of BEL (^G) received since the last ClearBell
+}
+
+// ClearBell resets the bell counter to zero.
+func (t *Term) ClearBell() {
+	t.Bell = 0
 }
 
 // New returns a Term of the given size with the primary screen active.

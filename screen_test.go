@@ -616,6 +616,36 @@ func TestNextLine(t *testing.T) {
 	})
 }
 
+func TestLineFeed(t *testing.T) {
+	t.Run("middle moves down, column unchanged", func(t *testing.T) {
+		s := NewScreen(10, 5)
+		labelRows(s)
+		s.Row, s.Col = 2, 3
+		funcMap[ansi.LF](s, nil)
+		if s.Row != 3 || s.Col != 3 {
+			t.Errorf("cursor = %d,%d, want 3,3 (column preserved)", s.Row, s.Col)
+		}
+		if rowLabel(s, 0) != '0' {
+			t.Error("contents should not scroll in the middle")
+		}
+	})
+	t.Run("bottom scrolls up, column unchanged", func(t *testing.T) {
+		s := NewScreen(10, 5)
+		labelRows(s)
+		s.Row, s.Col = 9, 3
+		funcMap[ansi.LF](s, nil)
+		if s.Row != 9 || s.Col != 3 {
+			t.Errorf("cursor = %d,%d, want 9,3", s.Row, s.Col)
+		}
+		if got := rowLabel(s, 0); got != '1' {
+			t.Errorf("row 0 after scroll = %q, want '1'", got)
+		}
+		if got := rowLabel(s, 9); got != ' ' {
+			t.Errorf("row 9 after scroll = %q, want blank", got)
+		}
+	})
+}
+
 func TestReverseIndex(t *testing.T) {
 	t.Run("middle moves up, column unchanged", func(t *testing.T) {
 		s := NewScreen(10, 5)

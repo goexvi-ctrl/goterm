@@ -103,6 +103,28 @@ func TestAltScreenIdempotent(t *testing.T) {
 	}
 }
 
+func TestBell(t *testing.T) {
+	tm := New(5, 10)
+	if tm.Bell != 0 {
+		t.Errorf("initial Bell = %d, want 0", tm.Bell)
+	}
+	funcMap[ansi.BEL](tm.Current, nil)
+	funcMap[ansi.BEL](tm.Current, nil)
+	if tm.Bell != 2 {
+		t.Errorf("Bell = %d, want 2 after two BELs", tm.Bell)
+	}
+	tm.ClearBell()
+	if tm.Bell != 0 {
+		t.Errorf("Bell = %d after ClearBell, want 0", tm.Bell)
+	}
+}
+
+func TestBellStandaloneNoop(t *testing.T) {
+	// A standalone screen has no Term to count on; BEL must not panic.
+	s := NewScreen(5, 10)
+	funcMap[ansi.BEL](s, nil)
+}
+
 func TestAltScreenStandaloneNoop(t *testing.T) {
 	// A standalone screen has no Term; the alt-screen modes must be ignored
 	// without panicking.

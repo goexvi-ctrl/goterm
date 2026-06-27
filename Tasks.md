@@ -26,6 +26,8 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Alternate screen buffer (SM/RM ?1049, ?47, ?1047): Term wraps a
   primary and alternate Screen with a Current pointer; ?1049 saves/clears on
   entry and restores on exit.
+* TESTED - Line feed and bell: LF/IND (down one line, scroll at bottom, column
+  unchanged) and BEL (increments Term.Bell; ClearBell resets it).
 
 ## Deferred / out of scope
 * Save/restore cursor (DECSC/DECRC, ESC[s/u): not exported by pborman/ansi;
