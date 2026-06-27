@@ -289,6 +289,51 @@ func TestWriteSplitLoneEscape(t *testing.T) {
 	}
 }
 
+func TestWriteUTF8(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("┌─┐"))
+	if got := tm.Current.Dump()[0]; got != "┌─┐" {
+		t.Errorf("row 0 = %q, want %q", got, "┌─┐")
+	}
+	// Each box-drawing glyph is single-width, so the cursor advanced by three.
+	if tm.Current.Col != 3 {
+		t.Errorf("Col = %d, want 3", tm.Current.Col)
+	}
+	if tm.Current.Lines[0][1].Value != '─' {
+		t.Errorf("cell 0,1 = %q, want '─'", tm.Current.Lines[0][1].Value)
+	}
+}
+
+func TestWriteUTF8SplitRune(t *testing.T) {
+	// "─" is the three bytes e2 94 80; split it across two Writes.
+	tm := New(3, 10)
+	r := []byte("─")
+	tm.Write(r[:2])
+	if string(tm.pending) != string(r[:2]) {
+		t.Errorf("pending = %x, want %x (partial rune held)", tm.pending, r[:2])
+	}
+	if tm.Current.Dump()[0] != "" {
+		t.Error("nothing should print until the rune is complete")
+	}
+	tm.Write(r[2:])
+	if got := tm.Current.Dump()[0]; got != "─" {
+		t.Errorf("row 0 = %q, want %q", got, "─")
+	}
+	if len(tm.pending) != 0 {
+		t.Errorf("pending not drained: %x", tm.pending)
+	}
+}
+
+func TestWriteUTF8ByteAtATime(t *testing.T) {
+	tm := New(3, 10)
+	for _, b := range []byte("→") { // e2 86 92
+		tm.Write([]byte{b})
+	}
+	if got := tm.Current.Dump()[0]; got != "→" {
+		t.Errorf("row 0 = %q, want %q", got, "→")
+	}
+}
+
 func TestWriteScrollsAtBottom(t *testing.T) {
 	tm := New(2, 3)
 	// Three CRLF-separated lines on a 2-row screen scroll the first one off.

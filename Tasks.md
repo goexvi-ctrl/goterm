@@ -40,11 +40,14 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 
 * TESTED - Cross-Write partial sequences: a sequence truncated at the end of a
   Write is held in Term.pending and prepended to the next Write, so the caller
-  may split input anywhere (down to one byte per call).
+  may split input anywhere (down to one byte per call).  Includes a multi-byte
+  UTF-8 rune split across Writes.
+* TESTED - UTF-8 and C0 split: Write uses ansi.Decoder{UTF8: true, C0: true}.
+  UTF-8 text round-trips (box-drawing, arrows); C0 controls arrive as their own
+  items so process() dispatches everything (controls and escapes) via funcMap
+  and text runs are pure printable.
 
 ## Pending
-* UTF-8: the vendored ansi decoder treats 0x80-0x9f as C1; make it UTF-8 aware
-  (put() already takes full runes).
 * Wide (double-width) characters: put() currently treats every rune as width 1.
 
 ## Deferred / out of scope
