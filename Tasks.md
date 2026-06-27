@@ -17,7 +17,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Cursor relative position: HPR, HPB, VPR, VPB.
 * TESTED - Erase: ED, EL, ECH.
 * TESTED - Scroll and line feed: NEL, RI, SU, SD.
-* NEW - Insert/delete lines: IL, DL.
+* TESTED - Insert/delete lines: IL, DL.
 * NEW - Insert/delete characters: ICH, DCH.
 * NEW - Tabs: HT, CHT, CBT, HTS, TBC.
 * NEW - Select Graphic Rendition: SGR (attributes + 8/16/256 colors).

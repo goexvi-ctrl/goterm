@@ -643,6 +643,58 @@ func TestReverseIndex(t *testing.T) {
 	})
 }
 
+func TestInsertLines(t *testing.T) {
+	s := New(10, 5)
+	labelRows(s)
+	s.Row, s.Col = 3, 4
+	funcMap[ansi.IL](s, Params{"2"})
+	// Rows 0-2 unchanged; rows 3-4 blank; old rows 3-7 now at 5-9.
+	for r := 0; r < 3; r++ {
+		if got := rowLabel(s, r); got != rune('0'+r) {
+			t.Errorf("row %d label = %q, want %q", r, got, rune('0'+r))
+		}
+	}
+	for r := 3; r < 5; r++ {
+		if got := rowLabel(s, r); got != ' ' {
+			t.Errorf("row %d label = %q, want blank", r, got)
+		}
+	}
+	for r := 5; r < 10; r++ {
+		if got := rowLabel(s, r); got != rune('0'+r-2) {
+			t.Errorf("row %d label = %q, want %q", r, got, rune('0'+r-2))
+		}
+	}
+	if s.Col != 0 {
+		t.Errorf("Col = %d, want 0 (left margin)", s.Col)
+	}
+}
+
+func TestDeleteLines(t *testing.T) {
+	s := New(10, 5)
+	labelRows(s)
+	s.Row, s.Col = 3, 4
+	funcMap[ansi.DL](s, Params{"2"})
+	// Rows 0-2 unchanged; old rows 5-9 now at 3-7; rows 8-9 blank.
+	for r := 0; r < 3; r++ {
+		if got := rowLabel(s, r); got != rune('0'+r) {
+			t.Errorf("row %d label = %q, want %q", r, got, rune('0'+r))
+		}
+	}
+	for r := 3; r < 8; r++ {
+		if got := rowLabel(s, r); got != rune('0'+r+2) {
+			t.Errorf("row %d label = %q, want %q", r, got, rune('0'+r+2))
+		}
+	}
+	for r := 8; r < 10; r++ {
+		if got := rowLabel(s, r); got != ' ' {
+			t.Errorf("row %d label = %q, want blank", r, got)
+		}
+	}
+	if s.Col != 0 {
+		t.Errorf("Col = %d, want 0 (left margin)", s.Col)
+	}
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {

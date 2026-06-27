@@ -238,6 +238,40 @@ func (s *Screen) scrollDown(n int) {
 	}
 }
 
+// insertLines inserts n blank lines at row "at", pushing that row and those
+// below it down; lines pushed past the bottom are discarded.
+func (s *Screen) insertLines(at, n int) {
+	if at < 0 || at >= s.Rows || n <= 0 {
+		return
+	}
+	if n > s.Rows-at {
+		n = s.Rows - at
+	}
+	for r := s.Rows - 1; r >= at+n; r-- {
+		copy(s.Lines[r], s.Lines[r-n])
+	}
+	for r := at; r < at+n; r++ {
+		s.fill(r, 0, s.Cols-1)
+	}
+}
+
+// deleteLines deletes n lines starting at row "at", pulling the lines below up
+// and blanking n lines at the bottom.
+func (s *Screen) deleteLines(at, n int) {
+	if at < 0 || at >= s.Rows || n <= 0 {
+		return
+	}
+	if n > s.Rows-at {
+		n = s.Rows - at
+	}
+	for r := at; r < s.Rows-n; r++ {
+		copy(s.Lines[r], s.Lines[r+n])
+	}
+	for r := s.Rows - n; r < s.Rows; r++ {
+		s.fill(r, 0, s.Cols-1)
+	}
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -319,4 +353,9 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 			s.Row--
 		}
 	},
+
+	// Insert/delete lines at the cursor row.  Per DEC behavior the cursor is
+	// moved to the left margin (column 0).
+	ansi.IL: func(s *Screen, p Params) { s.insertLines(s.Row, p.Amt(0)); s.Col = 0 },
+	ansi.DL: func(s *Screen, p Params) { s.deleteLines(s.Row, p.Amt(0)); s.Col = 0 },
 }
