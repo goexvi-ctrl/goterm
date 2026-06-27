@@ -31,6 +31,16 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Term outbound stream: Out, a single buffered chan []byte (the one
   serial return line), carrying query responses and any other return bytes.
   Producers (parse loop, DSR/DA) pending.
+* TESTED - Write feed loop: Term.Write([]byte) (io.Writer) decodes the stream,
+  prints runes with deferred wrap and InsertMode, routes C0 controls and
+  escapes through funcMap.  put()/index() added to Screen.
+
+## Pending
+* Query responses onto Out: DSR (\E[6n -> CPR) and DA (\E[c), using Term.Send.
+* Cross-Write partial sequences: buffer the unconsumed tail for the next Write.
+* UTF-8: the vendored ansi decoder treats 0x80-0x9f as C1; make it UTF-8 aware
+  (put() already takes full runes).
+* Wide (double-width) characters: put() currently treats every rune as width 1.
 
 ## Deferred / out of scope
 * Save/restore cursor (DECSC/DECRC, ESC[s/u): not exported by pborman/ansi;

@@ -1,0 +1,185 @@
+package goterm
+
+import (
+	"io"
+	"testing"
+)
+
+// Term must satisfy io.Writer.
+var _ io.Writer = (*Term)(nil)
+
+func TestWriteText(t *testing.T) {
+	tm := New(3, 10)
+	n, err := tm.Write([]byte("hello"))
+	if n != 5 || err != nil {
+		t.Fatalf("Write returned (%d, %v), want (5, nil)", n, err)
+	}
+	if got := rowString(tm.Current.Lines[0]); got != "hello     " {
+		t.Errorf("row 0 = %q, want %q", got, "hello     ")
+	}
+	if tm.Current.Row != 0 || tm.Current.Col != 5 {
+		t.Errorf("cursor = %d,%d, want 0,5", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteEmpty(t *testing.T) {
+	tm := New(3, 10)
+	if n, err := tm.Write(nil); n != 0 || err != nil {
+		t.Errorf("Write(nil) = (%d, %v), want (0, nil)", n, err)
+	}
+}
+
+func TestWriteLineFeedKeepsColumn(t *testing.T) {
+	// A bare LF moves down but does not return to column 0.
+	tm := New(3, 10)
+	tm.Write([]byte("ab\ncd"))
+	if got := rowString(tm.Current.Lines[0]); got != "ab        " {
+		t.Errorf("row 0 = %q, want %q", got, "ab        ")
+	}
+	if got := rowString(tm.Current.Lines[1]); got != "  cd      " {
+		t.Errorf("row 1 = %q, want %q", got, "  cd      ")
+	}
+	if tm.Current.Row != 1 || tm.Current.Col != 4 {
+		t.Errorf("cursor = %d,%d, want 1,4", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteCRLF(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("ab\r\ncd"))
+	if got := rowString(tm.Current.Lines[1]); got != "cd        " {
+		t.Errorf("row 1 = %q, want %q", got, "cd        ")
+	}
+	if tm.Current.Row != 1 || tm.Current.Col != 2 {
+		t.Errorf("cursor = %d,%d, want 1,2", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteBackspace(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("abc\b"))
+	if tm.Current.Col != 2 {
+		t.Errorf("Col after backspace = %d, want 2", tm.Current.Col)
+	}
+}
+
+func TestWriteTab(t *testing.T) {
+	tm := New(3, 20)
+	tm.Write([]byte("a\tb"))
+	// 'a' at col 0, tab advances to col 8, 'b' at col 8.
+	if got := tm.Current.Lines[0][8].Value; got != 'b' {
+		t.Errorf("cell 0,8 = %q, want 'b'", got)
+	}
+}
+
+func TestWriteAutoWrap(t *testing.T) {
+	tm := New(2, 3)
+	tm.Write([]byte("abcd"))
+	if got := rowString(tm.Current.Lines[0]); got != "abc" {
+		t.Errorf("row 0 = %q, want %q", got, "abc")
+	}
+	if got := rowString(tm.Current.Lines[1]); got != "d  " {
+		t.Errorf("row 1 = %q, want %q", got, "d  ")
+	}
+	if tm.Current.Row != 1 || tm.Current.Col != 1 {
+		t.Errorf("cursor = %d,%d, want 1,1", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteDeferredWrap(t *testing.T) {
+	// Filling exactly the last column must NOT scroll; the wrap is deferred to
+	// the next printable rune (split across two Writes here).
+	tm := New(2, 3)
+	tm.Write([]byte("abc"))
+	if tm.Current.Row != 0 {
+		t.Errorf("after filling the line, Row = %d, want 0 (no premature wrap)", tm.Current.Row)
+	}
+	tm.Write([]byte("d"))
+	if tm.Current.Row != 1 || tm.Current.Col != 1 {
+		t.Errorf("cursor = %d,%d, want 1,1", tm.Current.Row, tm.Current.Col)
+	}
+	if got := rowString(tm.Current.Lines[1]); got != "d  " {
+		t.Errorf("row 1 = %q, want %q", got, "d  ")
+	}
+}
+
+func TestWriteNoAutoWrap(t *testing.T) {
+	tm := New(2, 3)
+	tm.Current.AutoWrap = false
+	tm.Write([]byte("abcd"))
+	// 'd' overwrites 'c' at the last column; nothing wraps.
+	if got := rowString(tm.Current.Lines[0]); got != "abd" {
+		t.Errorf("row 0 = %q, want %q", got, "abd")
+	}
+	if got := rowString(tm.Current.Lines[1]); got != "   " {
+		t.Errorf("row 1 = %q, want blank", got)
+	}
+	if tm.Current.Row != 0 || tm.Current.Col != 2 {
+		t.Errorf("cursor = %d,%d, want 0,2", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteInsertMode(t *testing.T) {
+	// End-to-end: SM 4 enables insert mode, then a printed char shifts the rest
+	// of the line right.
+	tm := New(1, 5)
+	tm.Write([]byte("abc\r\x1b[4hX"))
+	if got := rowString(tm.Current.Lines[0]); got != "Xabc " {
+		t.Errorf("row 0 = %q, want %q", got, "Xabc ")
+	}
+	if tm.Current.Col != 1 {
+		t.Errorf("Col = %d, want 1", tm.Current.Col)
+	}
+}
+
+func TestWriteSGRPen(t *testing.T) {
+	// An escape parsed mid-stream updates the pen, and the next glyph adopts it.
+	tm := New(3, 10)
+	tm.Write([]byte("\x1b[31mA"))
+	if tm.Current.Cur.Foreground != Red {
+		t.Errorf("pen fg = %d, want Red", tm.Current.Cur.Foreground)
+	}
+	cell := tm.Current.Lines[0][0]
+	if cell.Value != 'A' || cell.Foreground != Red {
+		t.Errorf("cell = %+v, want 'A' in Red", cell)
+	}
+}
+
+func TestWriteCursorPosition(t *testing.T) {
+	tm := New(5, 10)
+	tm.Write([]byte("\x1b[3;4H"))
+	if tm.Current.Row != 2 || tm.Current.Col != 3 {
+		t.Errorf("cursor = %d,%d, want 2,3", tm.Current.Row, tm.Current.Col)
+	}
+}
+
+func TestWriteAltScreenSwitch(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("\x1b[?1049hx"))
+	if tm.Current != tm.Alternate {
+		t.Fatal("?1049h should switch to the alternate screen")
+	}
+	if tm.Alternate.Lines[0][0].Value != 'x' {
+		t.Error("text after the switch should land on the alternate screen")
+	}
+}
+
+func TestWriteBell(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("a\ab"))
+	if tm.Bell != 1 {
+		t.Errorf("Bell = %d, want 1", tm.Bell)
+	}
+}
+
+func TestWriteScrollsAtBottom(t *testing.T) {
+	tm := New(2, 3)
+	// Three CRLF-separated lines on a 2-row screen scroll the first one off.
+	tm.Write([]byte("a\r\nb\r\nc"))
+	if got := rowString(tm.Current.Lines[0]); got != "b  " {
+		t.Errorf("row 0 = %q, want %q", got, "b  ")
+	}
+	if got := rowString(tm.Current.Lines[1]); got != "c  " {
+		t.Errorf("row 1 = %q, want %q", got, "c  ")
+	}
+}

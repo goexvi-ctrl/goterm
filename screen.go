@@ -249,6 +249,41 @@ func (s *Screen) scrollDown(n int) {
 	}
 }
 
+// index moves the cursor down one line, scrolling the screen up when it is
+// already on the last line.
+func (s *Screen) index() {
+	if s.Row >= s.Rows-1 {
+		s.scrollUp(1)
+	} else {
+		s.Row++
+	}
+}
+
+// put writes a printable rune at the cursor (using the current pen) and advances
+// it.  At the right margin it performs a deferred wrap: the cursor is allowed to
+// rest one column past the last, and the wrap to the next line happens when the
+// next rune is written, and only when AutoWrap is set.  In InsertMode the rest
+// of the line is shifted right to make room.
+func (s *Screen) put(r rune) {
+	if s.Col >= s.Cols {
+		if s.AutoWrap {
+			s.Col = 0
+			s.index()
+		} else {
+			s.Col = s.Cols - 1
+		}
+	}
+	if s.InsertMode {
+		s.insertChars(s.Row, s.Col, 1)
+	}
+	cell := s.blank()
+	cell.Value = r
+	s.Lines[s.Row][s.Col] = cell
+	if s.AutoWrap || s.Col < s.Cols-1 {
+		s.Col++
+	}
+}
+
 // insertLines inserts n blank lines at row "at", pushing that row and those
 // below it down; lines pushed past the bottom are discarded.
 func (s *Screen) insertLines(at, n int) {
@@ -576,16 +611,9 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	// Scrolling and line feeds.  SU/SD scroll the contents without moving the
 	// cursor.  NEL moves to the start of the next line, scrolling up at the
 	// bottom; RI moves up one line, scrolling down at the top.
-	ansi.SU: func(s *Screen, p Params) { s.scrollUp(p.Amt(0)) },
-	ansi.SD: func(s *Screen, p Params) { s.scrollDown(p.Amt(0)) },
-	ansi.NEL: func(s *Screen, p Params) {
-		s.Col = 0
-		if s.Row >= s.Rows-1 {
-			s.scrollUp(1)
-		} else {
-			s.Row++
-		}
-	},
+	ansi.SU:  func(s *Screen, p Params) { s.scrollUp(p.Amt(0)) },
+	ansi.SD:  func(s *Screen, p Params) { s.scrollDown(p.Amt(0)) },
+	ansi.NEL: func(s *Screen, p Params) { s.Col = 0; s.index() },
 	ansi.RI: func(s *Screen, p Params) {
 		if s.Row <= 0 {
 			s.scrollDown(1)
@@ -595,13 +623,7 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	},
 	// LF (Index) moves down one line, scrolling at the bottom.  Unlike NEL it
 	// does not change the column.
-	ansi.LF: func(s *Screen, p Params) {
-		if s.Row >= s.Rows-1 {
-			s.scrollUp(1)
-		} else {
-			s.Row++
-		}
-	},
+	ansi.LF: func(s *Screen, p Params) { s.index() },
 
 	// Insert/delete lines at the cursor row.  Per DEC behavior the cursor is
 	// moved to the left margin (column 0).
