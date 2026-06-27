@@ -840,6 +840,82 @@ func TestTabClear(t *testing.T) {
 	})
 }
 
+func TestSGRAttributes(t *testing.T) {
+	s := New(3, 10)
+
+	funcMap[ansi.SGR](s, Params{"1", "3"}) // bold + italic
+	if want := int(BoldMask | ItalicMask); s.Cur.Attributes != want {
+		t.Errorf("after 1;3: Attributes = %b, want %b", s.Cur.Attributes, want)
+	}
+
+	funcMap[ansi.SGR](s, Params{"4"}) // add underline
+	if s.Cur.Attributes&int(UnderlineMask) == 0 {
+		t.Error("underline not set")
+	}
+
+	funcMap[ansi.SGR](s, Params{"23"}) // clear italic only
+	if s.Cur.Attributes&int(ItalicMask) != 0 {
+		t.Error("italic not cleared by 23")
+	}
+	if s.Cur.Attributes&int(BoldMask) == 0 {
+		t.Error("bold should survive 23")
+	}
+
+	funcMap[ansi.SGR](s, nil) // reset
+	if s.Cur != defaultCell() {
+		t.Errorf("after reset: Cur = %+v, want default", s.Cur)
+	}
+}
+
+func TestSGRColors(t *testing.T) {
+	tests := []struct {
+		name    string
+		params  Params
+		fg, bg  int
+	}{
+		{"basic fg/bg", Params{"31", "42"}, Red, Green},
+		{"default fg", Params{"31", "39"}, DefaultForeground, DefaultBackground},
+		{"default bg", Params{"42", "49"}, DefaultForeground, DefaultBackground},
+		{"bright fg", Params{"91"}, Red + 8, DefaultBackground},
+		{"bright bg", Params{"101"}, DefaultForeground, Red + 8},
+		{"256 fg", Params{"38", "5", "200"}, 200, DefaultBackground},
+		{"256 bg", Params{"48", "5", "123"}, DefaultForeground, 123},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(3, 10)
+			funcMap[ansi.SGR](s, tt.params)
+			if s.Cur.Foreground != tt.fg || s.Cur.Background != tt.bg {
+				t.Errorf("fg/bg = %d/%d, want %d/%d",
+					s.Cur.Foreground, s.Cur.Background, tt.fg, tt.bg)
+			}
+		})
+	}
+}
+
+func TestSGRTruecolorConsumed(t *testing.T) {
+	// 38;2;r;g;b is not representable; it must be skipped without misreading
+	// the trailing parameter (here 1 = bold).
+	s := New(3, 10)
+	funcMap[ansi.SGR](s, Params{"38", "2", "10", "20", "30", "1"})
+	if s.Cur.Foreground != DefaultForeground {
+		t.Errorf("truecolor should leave fg unchanged, got %d", s.Cur.Foreground)
+	}
+	if s.Cur.Attributes&int(BoldMask) == 0 {
+		t.Error("trailing bold (1) after truecolor was not applied")
+	}
+}
+
+func TestSGRAffectsErase(t *testing.T) {
+	// The pen set by SGR must be used when erasing.
+	s := New(3, 10)
+	funcMap[ansi.SGR](s, Params{"44"}) // background blue
+	funcMap[ansi.EL](s, Params{"2"})   // clear the cursor's line
+	if got := s.Lines[0][0].Background; got != Blue {
+		t.Errorf("erased cell Background = %d, want Blue (%d)", got, Blue)
+	}
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {

@@ -20,7 +20,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Insert/delete lines: IL, DL.
 * TESTED - Insert/delete characters: ICH, DCH.
 * TESTED - Tabs: HT, CHT, CBT, HTS, TBC.
-* NEW - Select Graphic Rendition: SGR (attributes + 8/16/256 colors).
+* TESTED - Select Graphic Rendition: SGR (attributes + 8/16/256 colors).
 
 ## Deferred / out of scope
 * Save/restore cursor (DECSC/DECRC, ESC[s/u): not exported by pborman/ansi;

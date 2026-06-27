@@ -331,6 +331,106 @@ func (s *Screen) prevTab(col int) int {
 	return 0
 }
 
+// setAttr sets the given attribute bit in the current pen.
+func (s *Screen) setAttr(attr uint) {
+	s.Cur.Attributes = int(addAttr(uint(s.Cur.Attributes), attr))
+}
+
+// clearAttr clears the given attribute mask bits from the current pen.
+func (s *Screen) clearAttr(mask uint) {
+	s.Cur.Attributes &^= int(mask)
+}
+
+// readExtColor decodes an extended-color selector (SGR 38/48) whose selector
+// code is at p[i].  It returns the resulting palette index, the number of
+// additional parameters consumed, and whether a usable color was produced.
+// "5;n" selects 256-color index n; "2;r;g;b" is truecolor, which a palette
+// index cannot represent, so it is consumed but not applied.
+func readExtColor(p Params, i int) (color, advance int, ok bool) {
+	switch p.Int(i + 1) {
+	case 5:
+		return p.Int(i + 2), 2, true
+	case 2:
+		return 0, 4, false
+	default:
+		return 0, 0, false
+	}
+}
+
+// applySGR applies a Select Graphic Rendition sequence to the current pen.
+// Supported: reset (0), the common attributes and their resets, the 8 basic
+// and 8 bright colors, and 256-color (38;5/48;5).  Brightness is encoded in
+// the palette index (8-15), not in an attribute bit.  Truecolor (38;2/48;2)
+// is parsed but not applied since cells store only a palette index.
+func (s *Screen) applySGR(p Params) {
+	if len(p) == 0 {
+		s.Cur = defaultCell()
+		return
+	}
+	for i := 0; i < len(p); i++ {
+		switch n := p.Int(i); {
+		case n == 0:
+			s.Cur = defaultCell()
+		case n == 1:
+			s.setAttr(BoldAttr)
+		case n == 2:
+			s.setAttr(FaintAttr)
+		case n == 3:
+			s.setAttr(ItalicAttr)
+		case n == 4:
+			s.setAttr(UnderlineAttr)
+		case n == 5:
+			s.setAttr(SlowBlinkAttr)
+		case n == 6:
+			s.setAttr(RapidBlinkAttr)
+		case n == 7:
+			s.setAttr(InverseAttr)
+		case n == 8:
+			s.setAttr(HiddenAttr)
+		case n == 9:
+			s.setAttr(StrikethroughAttr)
+		case n == 22:
+			s.clearAttr(BoldMask | FaintMask)
+		case n == 23:
+			s.clearAttr(ItalicMask)
+		case n == 24:
+			s.clearAttr(UnderlineMask)
+		case n == 25:
+			s.clearAttr(SlowBlinkMask | RapidBlinkMask)
+		case n == 27:
+			s.clearAttr(InverseMask)
+		case n == 28:
+			s.clearAttr(HiddenMask)
+		case n == 29:
+			s.clearAttr(StrikethroughMask)
+		case n >= 30 && n <= 37:
+			s.Cur.Foreground = n - 30
+		case n == 38:
+			c, adv, ok := readExtColor(p, i)
+			if ok {
+				s.Cur.Foreground = c
+			}
+			i += adv
+		case n == 39:
+			s.Cur.Foreground = DefaultForeground
+		case n >= 40 && n <= 47:
+			s.Cur.Background = n - 40
+		case n == 48:
+			c, adv, ok := readExtColor(p, i)
+			if ok {
+				s.Cur.Background = c
+			}
+			i += adv
+		case n == 49:
+			s.Cur.Background = DefaultBackground
+		case n >= 90 && n <= 97:
+			s.Cur.Foreground = (n - 90) + 8
+		case n >= 100 && n <= 107:
+			s.Cur.Background = (n - 100) + 8
+		}
+	}
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -453,4 +553,7 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 			}
 		}
 	},
+
+	// Select Graphic Rendition: update the current pen (colors/attributes).
+	ansi.SGR: func(s *Screen, p Params) { s.applySGR(p) },
 }
