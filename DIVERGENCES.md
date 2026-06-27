@@ -14,60 +14,101 @@ where known.
 
 ## Confirmed
 
-### M (middle of screen) -- rounds the opposite way on an even line count  [B]
-- Setup: file of N lines on a 12-row terminal (11 text rows), send `M`.
-- Matches when an odd number of lines is displayed, and when the screen is full.
-- Diverges when an EVEN number of lines is displayed: with 6 lines (rows 0-5)
-  nvi lands on row 3 (L4), govi on row 2 (L3).
-- Rule: nvi's middle line is `(top+bottom+1)/2` (rounds down toward the bottom);
-  govi uses `(top+bottom)/2` (rounds up toward the top).
-- Evidence (probe across N lines on 12x40):
-  - N=5  -> both row 2
-  - N=6  -> nvi row 3, govi row 2   (diverge)
-  - N=7  -> both row 3
-  - N=11 -> both row 5
-  - N=20 -> both row 5
+### <Esc> followed by more bytes in one write does not exit insert mode  [B] -- highest priority
+- Setup: enter insert (`i`/`a`/`A`/`o`/`cc`/`cw`), type text, then `<Esc>`, then
+  MORE bytes, all delivered in a single write (e.g. `cwX<Esc>w.`).
+- nvi exits insert on the `<Esc>` and runs the following bytes as commands.
+- govi does NOT exit; it inserts the bytes after `<Esc>` as literal text.
+- Affects every insert entry, not just `cw`:
+  - govi `iZ<Esc>x`   -> `"Zxalpha beta gamma"`   (nvi -> `"alpha beta gamma"`)
+  - govi `aZ<Esc>x`   -> `"aZxlpha beta gamma"`   (nvi correct)
+  - govi `cwX<Esc>w.` -> `"Xw. beta gamma"`       (nvi -> `"X X gamma"`)
+  - govi `cwX<Esc>j0cwY<Esc>` -> `"Xj0cwY beta gamma"` (everything up to the
+    next Esc is swallowed as text)
+- Delivering the `<Esc>` in its own write (a pause after it) works correctly:
+  govi `cwZ<Esc>` then `x` -> `" beta gamma"`.  So the bug is about `<Esc>`
+  immediately followed by more input, not about `<Esc>` itself.
+- Likely cause: govi treats `<Esc>` + following bytes as a single key/escape
+  sequence (Meta/arrow disambiguation) without the timeout nvi uses, so a
+  scripted/pasted burst that contains a mid-stream `<Esc>` is misread.  nvi
+  disambiguates correctly even when the bytes arrive together.
+- METHOD IMPLICATION: any comparison that sends a mid-stream `<Esc>` will report
+  a spurious divergence rooted here.  Until govi is fixed, send `<Esc>` (and the
+  following keystroke) as a separate write when testing other commands.
 
-### :Nd (ex line delete) -- cursor column after delete  [B]
-- Setup: sampleLines, send `:2d<CR>` (delete line 2; line 3 "  indented..."
-  shifts up to become line 2, which has two leading spaces).
-- Body matches (correct line deleted).
-- Cursor: nvi lands at column 0; govi lands at column 2 (the first non-blank).
-- So after an ex delete govi moves to the first non-blank of the new current
-  line, while nvi stays in column 0.  (Note: interactive `dd` matches -- both
-  land at column 0 there; the divergence is specific to the ex `:d` path.)
+### Paging commands do not move the viewport (^F ^B ^D ^U ^E ^Y)  [B]
+- Setup: 60-line numbered file ("001".."060") on a 12-row terminal (11 text
+  rows).
+- nvi pages the viewport (and counts by window-2 = 9 for a full page, window/2
+  for a half page) and puts the cursor at the top of the new page; govi leaves
+  the viewport fixed and only moves the cursor within the current page.
+- Per command (top line shown, cursor row):
 
-### :set number -- narrower line-number gutter  [C]
-- Setup: sampleLines, send `:set number<CR>`.
-- nvi renders an 8-column gutter: `"      1 alpha beta gamma"` (text begins at
-  column 8).
-- govi renders a 6-column gutter: `"    1 alpha beta gamma"` (text begins at
-  column 6).
-- Cursor reflects it: nvi 0,8 vs govi 0,6.  Cosmetic, but it shifts every body
-  column, so any number-mode screen comparison will differ wholesale.
+  | keys | nvi top / cursor | govi top / cursor |
+  |------|------------------|-------------------|
+  | `^F` (from line 1)       | top 010, cur row 0  | top 001, cur row 9  |
+  | `^F^F`                   | top 019, cur row 0  | top 001, cur row 10 |
+  | `^B` (from end)          | top 041, cur row 10 | top 050, cur row 1  |
+  | `^D` (from line 1)       | top 007, cur row 0  | top 001, cur row 5  |
+  | `^U` (from end)          | top 044, cur row 10 | top 050, cur row 5  |
+  | `^E` (scroll down 1)     | top 002             | top 001 (no scroll) |
+  | `^Y` (scroll up 1)       | top moves up 1      | no scroll           |
+
+- Note the half-page count also differs: nvi `^D` advances the cursor line by 6,
+  govi by 5 (window/2 rounding), on top of the no-scroll difference.
+- This is the original `^F` finding, now generalized across the whole family.
+
+### goto off-screen line: viewport placement differs  [B]
+- Setup: 60-line file, `20G` (jump forward to a line below the current page).
+- Both put the cursor on line 020, but nvi places it mid-screen (top 015, cursor
+  row 5) while govi places it on the bottom row (top 010, cursor row 10).
+- So a forward jump to an off-screen line scrolls the target to the middle in
+  nvi and to the bottom in govi.
+
+### M (middle of screen): rounds the opposite way on an even line count  [B]
+- Setup: file of N lines on a 12-row terminal, send `M`.
+- Matches on an odd displayed-line count and on a full screen; diverges on an
+  EVEN count: with 6 lines nvi lands on row 3 (L4), govi on row 2 (L3).
+- Rule: nvi's middle line is `(top+bottom+1)/2` (rounds toward the bottom); govi
+  uses `(top+bottom)/2` (rounds toward the top).
+- Evidence (12x40): N=5 both row 2; N=6 nvi 3 / govi 2; N=7 both row 3;
+  N=11 both row 5; N=20 both row 5.
+
+### :Nd (ex line delete): cursor column after delete  [B]
+- Setup: sampleLines, `:2d<CR>` (line 3 "  indented..." shifts up to line 2).
+- Body matches; cursor differs: nvi lands at column 0, govi at column 2 (the
+  first non-blank).  Interactive `dd` matches (both column 0), so the divergence
+  is specific to the ex `:d` path.
+
+### :set number: narrower line-number gutter  [C]
+- nvi renders an 8-column gutter (`"      1 alpha..."`, text at column 8); govi a
+  6-column gutter (`"    1 alpha..."`, text at column 6).  Shifts every body
+  column, so number-mode comparisons differ wholesale.
 
 ## Matched (verified identical)
 
-These were checked and render/position identically; listed so the list of what
-has been covered is explicit.
-
 - Editing: `x`, `3x`, `X`, `dd`, `2dd`, `D`, `dw`, `d$`, `dG`, `J`, `r`, `~`,
-  `cw`, `yy`+`p`, `dd`+`p`.
+  `cw` (Esc at end), `yy`+`p`, `dd`+`p`.
 - Motion: `w`, `3w`, `b`, `e`, `0`, `$`, `^`, `f`, `t`, `G`, `gg`, `H`, `L`,
-  `50%`.  (`M` diverges -- see above.)
+  `50%`.  (`M` diverges -- above.)
 - Search: `/pat`, `/pat`+`n`, `/pat`+`N`, `?pat`, `*`, no-match search.
-- Ex: `:Nd` body (cursor differs -- above), `:N,Md`, `:s`, `:%s//g`, `:Nm`,
-  `:Nt`, `:N` (goto).
+- Ex: `:Nd` body (cursor differs), `:N,Md`, `:s`, `:%s//g`, `:Nm`, `:Nt`, `:N`.
+- Registers/repeat: `m`+`` ` ``, `m`+`'`, `"ayy`+`"ap`, `.` after `x`, `.` after
+  `dd`, `qa..q`+`@a` macro, `"A` append-register.  (`.` after `cw` diverges --
+  that is the <Esc> bug above, not a `.` bug.)
+- Structure: `>>`, `2>>`, `<<`, `>G`, `%` (paren and brace match), `==`.
 
 ## Known / accepted differences (not bugs)
 
 - `^X` hex input: govi accepts 2, 4, or 6 hex digits; nvi accepts only 2.
-  (Stated by the author as an intentional govi extension.)
+  (Intentional govi extension, per the author.)
 
 ## Notes on method
 
 - Cursor-only divergences are re-run with `-count=2` to rule out DSR-response
-  timing noise before being recorded; all entries above reproduced 2/2.
-- Status-line text (e.g. differing error or info messages) is treated as
-  cosmetic and is generally excluded from the body comparison by dropping the
-  last screen row; only `:set number` above touches layout.
+  timing noise before being recorded; all entries above reproduced.
+- Status-line text (differing error/info messages) is treated as cosmetic and
+  excluded by dropping the last screen row from the body comparison.
+- The `<Esc>` bug above means a single root cause can masquerade as many
+  command-level divergences; mid-stream `<Esc>` should be split out when probing
+  unrelated commands.

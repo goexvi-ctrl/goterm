@@ -3,6 +3,7 @@ package goterm
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -244,4 +245,94 @@ func TestDivergeEx(t *testing.T) {
 		}
 	}
 	t.Logf("ex: %d/%d scenarios diverged", mined, len(cases))
+}
+
+// numberedLines returns n lines "001".."NNN": distinct, sortable content so the
+// scrolled-to position is unambiguous.
+func numberedLines(n int) []string {
+	lines := make([]string, n)
+	for i := range lines {
+		lines[i] = fmtLine(i + 1)
+	}
+	return lines
+}
+
+func fmtLine(i int) string {
+	s := strconv.Itoa(i)
+	for len(s) < 3 {
+		s = "0" + s
+	}
+	return s
+}
+
+// TestDivergePaging exercises the scrolling/paging commands on a 60-line file at
+// 12x40.  These move the viewport, so both the body (top visible line) and the
+// cursor matter.  ^F is the original known divergence.
+func TestDivergePaging(t *testing.T) {
+	f := numberedLines(60)
+	cases := []divCase{
+		{"^F", f, "\x06", "forward one screen"},
+		{"^B", f, "G\x02", "back one screen (from end)"},
+		{"^D", f, "\x04", "down half screen"},
+		{"^U", f, "G\x15", "up half screen (from end)"},
+		{"^E", f, "\x05", "scroll down one line"},
+		{"^Y", f, "5G\x19", "scroll up one line"},
+		{"^F^F", f, "\x06\x06", "forward two screens"},
+		{"goto-off", f, "20G", "goto line off-screen (viewport placement)"},
+	}
+	mined := 0
+	for _, c := range cases {
+		if runDivCase(t, 12, 40, c) {
+			mined++
+		}
+	}
+	t.Logf("paging: %d/%d scenarios diverged", mined, len(cases))
+}
+
+// TestDivergeRegisters exercises marks, named registers, dot-repeat, and macros.
+func TestDivergeRegisters(t *testing.T) {
+	cases := []divCase{
+		{"mark", sampleLines(), "majj`a", "set mark a, move, jump back"},
+		{"mark-line", sampleLines(), "majj'a", "mark then line-jump back"},
+		{"named-yank", sampleLines(), "\"ayyj\"ap", "yank to reg a, put reg a"},
+		{"dot-x", sampleLines(), "x..", "delete char, repeat twice"},
+		{"dot-dd", sampleLines(), "dd.", "delete line, repeat"},
+		{"dot-cw", sampleLines(), "cwX\x1bw.", "change word, repeat on next"},
+		{"macro", sampleLines(), "qaxjq@a", "record macro, replay"},
+		{"append-reg", sampleLines(), "\"ayyj\"Ayygg\"ap", "append to register"},
+	}
+	mined := 0
+	for _, c := range cases {
+		if runDivCase(t, 12, 40, c) {
+			mined++
+		}
+	}
+	t.Logf("registers: %d/%d scenarios diverged", mined, len(cases))
+}
+
+// TestDivergeStructure exercises shift operators and bracket matching.
+func TestDivergeStructure(t *testing.T) {
+	brackets := []string{
+		"func f() {",
+		"    if (a) {",
+		"        x = 1",
+		"    }",
+		"}",
+	}
+	cases := []divCase{
+		{"shift-right", sampleLines(), ">>", "shift line right"},
+		{"shift-2", sampleLines(), "2>>", "shift 2 lines right"},
+		{"shift-left", brackets, "j<<", "shift line left"},
+		{"shift-G", sampleLines(), ">G", "shift to end of file"},
+		{"match-paren", brackets, "f(%", "match to closing paren"},
+		{"match-brace", brackets, "$%", "match to closing brace"},
+		{"indent-keep", brackets, "jj==", "reindent line"},
+	}
+	mined := 0
+	for _, c := range cases {
+		if runDivCase(t, 12, 40, c) {
+			mined++
+		}
+	}
+	t.Logf("structure: %d/%d scenarios diverged", mined, len(cases))
 }
