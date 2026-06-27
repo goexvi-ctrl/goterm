@@ -1,3 +1,5 @@
 /goterm
 *.test
 *.out
+
+/ansi

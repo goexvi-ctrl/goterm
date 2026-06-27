@@ -2,6 +2,7 @@ package goterm
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/pborman/ansi"
 )
@@ -77,6 +78,12 @@ type Screen struct {
 	Lines []Line
 	Cur   Cell   // Current graphic rendition (the "pen") applied to new and erased cells
 	Tabs  []bool // Tabs[c] is true when column c is a tab stop
+
+	// Terminal modes (set/reset via SM/RM).  These are simple flags read by
+	// the write and render paths; they default to a freshly reset terminal.
+	CursorVisible bool // DECTCEM (?25): cursor is shown
+	AutoWrap      bool // DECAWM (?7): wrap to the next line at the right margin
+	InsertMode    bool // IRM (4): printed characters shift the line right
 	// TODO: Add scrolling regions
 }
 
@@ -112,11 +119,13 @@ func (s *Screen) blank() Cell {
 // blank (space) on a black-on-white background and tab stops every 8 columns.
 func New(rows, cols int) *Screen {
 	s := &Screen{
-		Rows:  rows,
-		Cols:  cols,
-		Lines: make([]Line, rows),
-		Cur:   defaultCell(),
-		Tabs:  make([]bool, cols),
+		Rows:          rows,
+		Cols:          cols,
+		Lines:         make([]Line, rows),
+		Cur:           defaultCell(),
+		Tabs:          make([]bool, cols),
+		CursorVisible: true, // cursor shown and autowrap on by default
+		AutoWrap:      true,
 	}
 	for i := range s.Lines {
 		line := make(Line, cols)
@@ -431,6 +440,42 @@ func (s *Screen) applySGR(p Params) {
 	}
 }
 
+// modeParams returns the mode numbers in p and whether they are DEC private
+// modes (the parameter string is prefixed with '?').  pborman/ansi does not
+// split private-mode parameters on ';', so we split them here; for example
+// "?7;25" yields modes [7, 25] with private true.
+func modeParams(p Params) (modes []int, private bool) {
+	s := p.Str(0)
+	if strings.HasPrefix(s, "?") {
+		private = true
+		s = s[1:]
+	}
+	if s == "" {
+		return nil, private
+	}
+	for _, f := range strings.Split(s, ";") {
+		n, _ := strconv.Atoi(f)
+		modes = append(modes, n)
+	}
+	return modes, private
+}
+
+// setModes sets (on=true) or resets (on=false) the terminal modes named in p.
+// Unrecognized modes are ignored.
+func (s *Screen) setModes(p Params, on bool) {
+	modes, private := modeParams(p)
+	for _, m := range modes {
+		switch {
+		case private && m == 7: // DECAWM
+			s.AutoWrap = on
+		case private && m == 25: // DECTCEM
+			s.CursorVisible = on
+		case !private && m == 4: // IRM
+			s.InsertMode = on
+		}
+	}
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -556,4 +601,9 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 
 	// Select Graphic Rendition: update the current pen (colors/attributes).
 	ansi.SGR: func(s *Screen, p Params) { s.applySGR(p) },
+
+	// Set/Reset Mode.  Handles the flag modes DECTCEM (?25), DECAWM (?7), and
+	// IRM (4); other modes are ignored.
+	ansi.SM: func(s *Screen, p Params) { s.setModes(p, true) },
+	ansi.RM: func(s *Screen, p Params) { s.setModes(p, false) },
 }

@@ -916,6 +916,111 @@ func TestSGRAffectsErase(t *testing.T) {
 	}
 }
 
+func TestModeDefaults(t *testing.T) {
+	s := New(3, 10)
+	if !s.CursorVisible {
+		t.Error("CursorVisible should default to true")
+	}
+	if !s.AutoWrap {
+		t.Error("AutoWrap should default to true")
+	}
+	if s.InsertMode {
+		t.Error("InsertMode should default to false")
+	}
+}
+
+func TestModeParams(t *testing.T) {
+	tests := []struct {
+		params      Params
+		wantModes   []int
+		wantPrivate bool
+	}{
+		{Params{"?25"}, []int{25}, true},
+		{Params{"?7;25"}, []int{7, 25}, true},
+		{Params{"4"}, []int{4}, false},
+		{Params{"?"}, nil, true},
+		{nil, nil, false},
+	}
+	for _, tt := range tests {
+		modes, private := modeParams(tt.params)
+		if private != tt.wantPrivate {
+			t.Errorf("modeParams(%v) private = %v, want %v", tt.params, private, tt.wantPrivate)
+		}
+		if len(modes) != len(tt.wantModes) {
+			t.Errorf("modeParams(%v) modes = %v, want %v", tt.params, modes, tt.wantModes)
+			continue
+		}
+		for i := range modes {
+			if modes[i] != tt.wantModes[i] {
+				t.Errorf("modeParams(%v) modes = %v, want %v", tt.params, modes, tt.wantModes)
+				break
+			}
+		}
+	}
+}
+
+func TestSetResetMode(t *testing.T) {
+	t.Run("cursor visibility (?25)", func(t *testing.T) {
+		s := New(3, 10)
+		funcMap[ansi.RM](s, Params{"?25"})
+		if s.CursorVisible {
+			t.Error("RM ?25 should hide the cursor")
+		}
+		funcMap[ansi.SM](s, Params{"?25"})
+		if !s.CursorVisible {
+			t.Error("SM ?25 should show the cursor")
+		}
+	})
+	t.Run("autowrap (?7)", func(t *testing.T) {
+		s := New(3, 10)
+		funcMap[ansi.RM](s, Params{"?7"})
+		if s.AutoWrap {
+			t.Error("RM ?7 should disable autowrap")
+		}
+		funcMap[ansi.SM](s, Params{"?7"})
+		if !s.AutoWrap {
+			t.Error("SM ?7 should enable autowrap")
+		}
+	})
+	t.Run("insert mode (4)", func(t *testing.T) {
+		s := New(3, 10)
+		funcMap[ansi.SM](s, Params{"4"})
+		if !s.InsertMode {
+			t.Error("SM 4 should enable insert mode")
+		}
+		funcMap[ansi.RM](s, Params{"4"})
+		if s.InsertMode {
+			t.Error("RM 4 should disable insert mode")
+		}
+	})
+	t.Run("multiple private modes (?7;25)", func(t *testing.T) {
+		s := New(3, 10)
+		funcMap[ansi.RM](s, Params{"?7;25"})
+		if s.AutoWrap || s.CursorVisible {
+			t.Errorf("RM ?7;25 should clear both: AutoWrap=%v CursorVisible=%v",
+				s.AutoWrap, s.CursorVisible)
+		}
+	})
+	t.Run("ANSI mode number is not a private mode", func(t *testing.T) {
+		// "4" (IRM) must not be confused with private mode 4.
+		s := New(3, 10)
+		funcMap[ansi.SM](s, Params{"4"})
+		if !s.InsertMode {
+			t.Error("SM 4 should set IRM")
+		}
+		if !s.CursorVisible || !s.AutoWrap {
+			t.Error("SM 4 should not touch private modes")
+		}
+	})
+	t.Run("unknown mode is ignored", func(t *testing.T) {
+		s := New(3, 10)
+		funcMap[ansi.SM](s, Params{"?2004"}) // bracketed paste, unsupported
+		if !s.CursorVisible || !s.AutoWrap || s.InsertMode {
+			t.Error("unknown mode should leave all flags at defaults")
+		}
+	})
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {
