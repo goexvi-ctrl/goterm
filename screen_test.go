@@ -763,6 +763,83 @@ func TestDeleteChars(t *testing.T) {
 	}
 }
 
+func TestTabForward(t *testing.T) {
+	// Default stops every 8 columns: 0, 8, 16 on a 20-wide screen.
+	tests := []struct {
+		start, want int
+	}{
+		{0, 8},
+		{5, 8},
+		{8, 16},
+		{16, 19}, // no stop past 16: clamp to last column
+		{19, 19},
+	}
+	for _, tt := range tests {
+		s := New(3, 20)
+		s.Col = tt.start
+		funcMap[ansi.HT](s, nil)
+		if s.Col != tt.want {
+			t.Errorf("HT from %d -> %d, want %d", tt.start, s.Col, tt.want)
+		}
+	}
+}
+
+func TestTabForwardN(t *testing.T) {
+	s := New(3, 20)
+	s.Col = 0
+	funcMap[ansi.CHT](s, Params{"2"})
+	if s.Col != 16 {
+		t.Errorf("CHT 2 from 0 -> %d, want 16", s.Col)
+	}
+}
+
+func TestTabBackward(t *testing.T) {
+	s := New(3, 20)
+	s.Col = 17
+	funcMap[ansi.CBT](s, Params{"2"})
+	if s.Col != 8 {
+		t.Errorf("CBT 2 from 17 -> %d, want 8", s.Col)
+	}
+	s.Col = 5
+	funcMap[ansi.CBT](s, nil)
+	if s.Col != 0 {
+		t.Errorf("CBT from 5 -> %d, want 0", s.Col)
+	}
+}
+
+func TestTabSet(t *testing.T) {
+	s := New(3, 20)
+	s.Col = 5
+	funcMap[ansi.HTS](s, nil)
+	s.Col = 0
+	funcMap[ansi.HT](s, nil)
+	if s.Col != 5 {
+		t.Errorf("HT after setting stop at 5 -> %d, want 5", s.Col)
+	}
+}
+
+func TestTabClear(t *testing.T) {
+	t.Run("clear stop at cursor", func(t *testing.T) {
+		s := New(3, 20)
+		s.Col = 8
+		funcMap[ansi.TBC](s, nil) // clear stop at col 8
+		s.Col = 0
+		funcMap[ansi.HT](s, nil)
+		if s.Col != 16 {
+			t.Errorf("HT after clearing stop 8 -> %d, want 16", s.Col)
+		}
+	})
+	t.Run("clear all stops", func(t *testing.T) {
+		s := New(3, 20)
+		funcMap[ansi.TBC](s, Params{"3"})
+		s.Col = 0
+		funcMap[ansi.HT](s, nil)
+		if s.Col != 19 {
+			t.Errorf("HT after clearing all stops -> %d, want 19", s.Col)
+		}
+	})
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {

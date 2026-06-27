@@ -310,6 +310,27 @@ func (s *Screen) deleteChars(r, c, n int) {
 	}
 }
 
+// nextTab returns the first tab stop after col, or the last column if there is
+// none.
+func (s *Screen) nextTab(col int) int {
+	for c := col + 1; c < s.Cols; c++ {
+		if s.Tabs[c] {
+			return c
+		}
+	}
+	return s.Cols - 1
+}
+
+// prevTab returns the last tab stop before col, or column 0 if there is none.
+func (s *Screen) prevTab(col int) int {
+	for c := col - 1; c > 0; c-- {
+		if s.Tabs[c] {
+			return c
+		}
+	}
+	return 0
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -400,4 +421,36 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	// Insert/delete characters at the cursor; the cursor does not move.
 	ansi.ICH: func(s *Screen, p Params) { s.insertChars(s.Row, s.Col, p.Amt(0)) },
 	ansi.DCH: func(s *Screen, p Params) { s.deleteChars(s.Row, s.Col, p.Amt(0)) },
+
+	// Tabs.  HT advances to the next stop; CHT/CBT move forward/back n stops.
+	// HTS sets a stop at the cursor; TBC clears the stop at the cursor (mode 0)
+	// or all stops (mode 3).
+	ansi.HT: func(s *Screen, p Params) { s.Col = s.nextTab(s.Col) },
+	ansi.CHT: func(s *Screen, p Params) {
+		for i := 0; i < p.Amt(0); i++ {
+			s.Col = s.nextTab(s.Col)
+		}
+	},
+	ansi.CBT: func(s *Screen, p Params) {
+		for i := 0; i < p.Amt(0); i++ {
+			s.Col = s.prevTab(s.Col)
+		}
+	},
+	ansi.HTS: func(s *Screen, p Params) {
+		if s.Col >= 0 && s.Col < s.Cols {
+			s.Tabs[s.Col] = true
+		}
+	},
+	ansi.TBC: func(s *Screen, p Params) {
+		switch p.Int(0) {
+		case 3, 5: // clear all stops
+			for c := range s.Tabs {
+				s.Tabs[c] = false
+			}
+		default: // 0: clear the stop at the cursor
+			if s.Col >= 0 && s.Col < s.Cols {
+				s.Tabs[s.Col] = false
+			}
+		}
+	},
 }
