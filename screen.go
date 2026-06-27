@@ -272,6 +272,44 @@ func (s *Screen) deleteLines(at, n int) {
 	}
 }
 
+// insertChars inserts n blank cells at (r, c), shifting the rest of the line
+// right; cells pushed past the right edge are discarded.
+func (s *Screen) insertChars(r, c, n int) {
+	if r < 0 || r >= s.Rows || c < 0 || c >= s.Cols || n <= 0 {
+		return
+	}
+	if n > s.Cols-c {
+		n = s.Cols - c
+	}
+	line := s.Lines[r]
+	for x := s.Cols - 1; x >= c+n; x-- {
+		line[x] = line[x-n]
+	}
+	b := s.blank()
+	for x := c; x < c+n; x++ {
+		line[x] = b
+	}
+}
+
+// deleteChars deletes n cells at (r, c), shifting the rest of the line left and
+// blanking n cells at the right edge.
+func (s *Screen) deleteChars(r, c, n int) {
+	if r < 0 || r >= s.Rows || c < 0 || c >= s.Cols || n <= 0 {
+		return
+	}
+	if n > s.Cols-c {
+		n = s.Cols - c
+	}
+	line := s.Lines[r]
+	for x := c; x < s.Cols-n; x++ {
+		line[x] = line[x+n]
+	}
+	b := s.blank()
+	for x := s.Cols - n; x < s.Cols; x++ {
+		line[x] = b
+	}
+}
+
 // funcMap is a map of ansi.Names to functions that implement that escape
 // sequence.  The function is provided the Screen to apply it to as well as the
 // parameters Gathered.
@@ -358,4 +396,8 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	// moved to the left margin (column 0).
 	ansi.IL: func(s *Screen, p Params) { s.insertLines(s.Row, p.Amt(0)); s.Col = 0 },
 	ansi.DL: func(s *Screen, p Params) { s.deleteLines(s.Row, p.Amt(0)); s.Col = 0 },
+
+	// Insert/delete characters at the cursor; the cursor does not move.
+	ansi.ICH: func(s *Screen, p Params) { s.insertChars(s.Row, s.Col, p.Amt(0)) },
+	ansi.DCH: func(s *Screen, p Params) { s.deleteChars(s.Row, s.Col, p.Amt(0)) },
 }

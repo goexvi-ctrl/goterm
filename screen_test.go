@@ -695,6 +695,74 @@ func TestDeleteLines(t *testing.T) {
 	}
 }
 
+// labelCols sets row r's cells to 'a', 'b', 'c', ... so horizontal shifts can
+// be read back as a string.
+func labelCols(s *Screen, r int) {
+	for c := range s.Lines[r] {
+		s.Lines[r][c].Value = rune('a' + c)
+	}
+}
+
+func rowString(line Line) string {
+	b := make([]rune, len(line))
+	for i, c := range line {
+		b[i] = c.Value
+	}
+	return string(b)
+}
+
+func TestInsertChars(t *testing.T) {
+	tests := []struct {
+		name   string
+		params Params
+		want   string
+	}{
+		{"ICH default (1)", nil, "abc defghi"},
+		{"ICH 2", Params{"2"}, "abc  defgh"},
+		{"ICH clamps to right edge", Params{"99"}, "abc       "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(3, 10)
+			labelCols(s, 1)
+			s.Row, s.Col = 1, 3
+			funcMap[ansi.ICH](s, tt.params)
+			if got := rowString(s.Lines[1]); got != tt.want {
+				t.Errorf("row = %q, want %q", got, tt.want)
+			}
+			if s.Row != 1 || s.Col != 3 {
+				t.Errorf("cursor moved to %d,%d", s.Row, s.Col)
+			}
+		})
+	}
+}
+
+func TestDeleteChars(t *testing.T) {
+	tests := []struct {
+		name   string
+		params Params
+		want   string
+	}{
+		{"DCH default (1)", nil, "abcefghij "},
+		{"DCH 2", Params{"2"}, "abcfghij  "},
+		{"DCH clamps to right edge", Params{"99"}, "abc       "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New(3, 10)
+			labelCols(s, 1)
+			s.Row, s.Col = 1, 3
+			funcMap[ansi.DCH](s, tt.params)
+			if got := rowString(s.Lines[1]); got != tt.want {
+				t.Errorf("row = %q, want %q", got, tt.want)
+			}
+			if s.Row != 1 || s.Col != 3 {
+				t.Errorf("cursor moved to %d,%d", s.Row, s.Col)
+			}
+		})
+	}
+}
+
 func TestClampRow(t *testing.T) {
 	s := New(10, 20)
 	tests := []struct {

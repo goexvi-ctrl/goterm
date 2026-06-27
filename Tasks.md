@@ -18,7 +18,7 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Erase: ED, EL, ECH.
 * TESTED - Scroll and line feed: NEL, RI, SU, SD.
 * TESTED - Insert/delete lines: IL, DL.
-* NEW - Insert/delete characters: ICH, DCH.
+* TESTED - Insert/delete characters: ICH, DCH.
 * NEW - Tabs: HT, CHT, CBT, HTS, TBC.
 * NEW - Select Graphic Rendition: SGR (attributes + 8/16/256 colors).
 
