@@ -1,6 +1,7 @@
 package goterm
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -74,4 +75,89 @@ func TestCompareGoviNvi(t *testing.T) {
 		len(cells), FormatCellDiffs(capCellDiffs(cells, 6)))
 
 	pair.send([]byte(":q!\r"))
+}
+
+// makeNumberedFile writes n lines "001".."NNN" to a temp file: distinct, sortable
+// content so the scrolled-to position is unambiguous.
+func makeNumberedFile(t *testing.T, n int) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "cmp-*.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 1; i <= n; i++ {
+		fmt.Fprintf(f, "%03d\n", i)
+	}
+	f.Close()
+	return f.Name()
+}
+
+func startEditorFile(t *testing.T, path, file string, rows, cols int) *Term {
+	t.Helper()
+	if _, err := os.Stat(path); err != nil {
+		t.Skipf("%s not available", path)
+	}
+	tm := New(rows, cols)
+	if err := tm.Start(path, file); err != nil {
+		t.Fatalf("Start %s: %v", path, err)
+	}
+	return tm
+}
+
+// TestCompareScroll compares scroll/motion commands between govi and nvi on a
+// multi-screen numbered file, reporting where the view (top line) or cursor
+// diverges.  Finding: ^F (forward one screen) diverges -- nvi pages the viewport
+// forward (window-2 lines, cursor to the top of the new page), while govi leaves
+// the view in place and only moves the cursor.  ^B/^D/^U then compound it.
+func TestCompareScroll(t *testing.T) {
+	file := makeNumberedFile(t, 60)
+	nvi := startEditorFile(t, "/opt/homebrew/bin/nvi", file, 12, 40)
+	defer nvi.Close()
+	govi := startEditorFile(t, "/Users/claude/bin/govi", file, 12, 40)
+	defer govi.Close()
+	pair := editorPair{A: nvi, B: govi}
+
+	if !pair.waitReady(func(d []string) bool { return d[len(d)-1] != "" }) {
+		t.Fatal("editors did not finish loading the file")
+	}
+
+	body := func(d []string) []string { return d[:len(d)-1] } // drop the status line
+	report := func(label string) {
+		pair.settle()
+		ar, ac := nvi.Cursor()
+		br, bc := govi.Cursor()
+		bodyMatch := len(DiffScreens(body(nvi.Dump()), body(govi.Dump()))) == 0
+		curMatch := ar == br && ac == bc
+		verdict := "match"
+		if !bodyMatch || !curMatch {
+			verdict = "DIVERGE"
+		}
+		t.Logf("[%-6s] %s  nvi(top=%q cur=%d,%d) govi(top=%q cur=%d,%d)",
+			label, verdict, nvi.Dump()[0], ar, ac, govi.Dump()[0], br, bc)
+	}
+
+	for _, s := range []struct {
+		label, keys string
+	}{
+		{"1G", "1G"}, {"j", "j"}, {"G", "G"}, {"1G", "1G"},
+		{"^F", "\x06"}, {"^B", "\x02"}, {"^D", "\x04"}, {"^U", "\x15"},
+	} {
+		pair.send([]byte(s.keys))
+		report(s.label)
+	}
+
+	// Document the ^F divergence concretely from a known start (top of file).
+	pair.send([]byte("1G"))
+	pair.settle()
+	pair.send([]byte("\x06"))
+	pair.settle()
+	t.Logf("after 1G then ^F: nvi view starts at %q (cursor %s), govi view starts at %q (cursor %s)",
+		nvi.Dump()[0], cursorStr(nvi), govi.Dump()[0], cursorStr(govi))
+
+	pair.send([]byte(":q!\r"))
+}
+
+func cursorStr(t *Term) string {
+	r, c := t.Cursor()
+	return fmt.Sprintf("%d,%d", r, c)
 }

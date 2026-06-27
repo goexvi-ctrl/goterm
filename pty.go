@@ -37,9 +37,7 @@ func (t *Term) Start(name string, args ...string) error {
 	}
 	stop := make(chan struct{})
 	t.pty = &ptySession{cmd: cmd, ptmx: ptmx, stop: stop}
-	t.mu.Lock()
-	t.lastWrite = time.Now() // so WaitQuiet does not read as settled before output arrives
-	t.mu.Unlock()
+	t.touch() // so WaitQuiet does not read as settled before output arrives
 
 	go t.pumpOutput(ptmx)
 	go t.forwardInput(ptmx, stop)
@@ -99,6 +97,14 @@ func (t *Term) Dump() []string {
 	return t.Current.Dump()
 }
 
+// Cursor returns the cursor's row and column on the current screen, under the
+// lock.
+func (t *Term) Cursor() (row, col int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.Current.Row, t.Current.Col
+}
+
 // Snapshot returns a copy of the current screen's cells -- including colors and
 // attributes, which Dump's text omits -- taken under the lock so it is a
 // consistent image even while the application is drawing.  Cells are values with
@@ -129,21 +135,19 @@ func (t *Term) WaitFor(timeout time.Duration, pred func(screen []string) bool) b
 	}
 }
 
-// WaitQuiet waits until the screen has been idle -- no Write -- for at least
-// idle, returning true once it settles, or false if timeout elapses first.
+// WaitQuiet waits until there has been no activity -- no Write or Send -- for at
+// least idle, returning true once it settles, or false if timeout elapses first.
 //
-// Use it after sending input that triggers a redraw, when you don't know the
-// exact result to wait for: it lets the application finish drawing.  Choose idle
+// Send counts as activity, so calling WaitQuiet right after sending a command
+// reliably waits for the application's response to begin and then finish (rather
+// than returning immediately because the screen was already quiet).  Choose idle
 // comfortably larger than the gaps between chunks of a single redraw but smaller
-// than the time you're willing to wait.  (For a known target state, WaitFor is
-// more precise; WaitQuiet can settle early if the application is slow to begin
-// responding.)
+// than the time you're willing to wait.  For a known target state, WaitFor is
+// still more precise.
 func (t *Term) WaitQuiet(idle, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for {
-		t.mu.Lock()
-		quietFor := time.Since(t.lastWrite)
-		t.mu.Unlock()
+		quietFor := time.Since(time.Unix(0, t.lastActivity.Load()))
 		if quietFor >= idle {
 			return true
 		}

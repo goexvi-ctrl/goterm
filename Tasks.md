@@ -92,3 +92,18 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   command, nvi shows the error in reverse video with a trailing period; govi
   shows it plain with no period.  The attribute diff is needed to catch the
   reverse video (text diff alone misses it).
+
+## govi vs nvi findings
+* Term.Cursor() exposes the cursor position (locked) for behavioral comparison.
+* WaitQuiet fix: Send now also resets the idle clock (lastActivity is atomic,
+  updated by Write and Send), so WaitQuiet after a command waits for that
+  command's response instead of returning immediately on an already-quiet
+  screen.  This also fixed apparent input loss at small screen sizes (it was the
+  same lag, not a size bug -- 12x40 works).
+* FINDING - control-key paging (^F/^B/^D/^U): nvi repaginates the viewport
+  (e.g. ^F advances the top by window-2 lines, cursor to the top of the new
+  page); govi moves the cursor but leaves the viewport unchanged.  Basic motions
+  (j, G, 1G) match.  See TestCompareScroll.
+* NOTE - status messages differ cosmetically (nvi "new file: line 1" /
+  "unmodified: line 1"; govi "N lines, M characters"); error messages: nvi adds
+  a trailing period and uses reverse video, govi neither.  Lower priority.

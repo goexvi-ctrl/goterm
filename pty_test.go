@@ -47,9 +47,9 @@ func TestWaitQuietStaysBusy(t *testing.T) {
 			}
 		}
 	}()
-	// Output every ~5ms never leaves a 50ms idle gap, so within 200ms it must
-	// not report settled.
-	settled := tm.WaitQuiet(50*time.Millisecond, 200*time.Millisecond)
+	// Output every ~5ms should not leave a 100ms idle gap (a 20x margin, robust
+	// under the race detector's scheduling), so within 500ms it must not settle.
+	settled := tm.WaitQuiet(100*time.Millisecond, 500*time.Millisecond)
 	close(done)
 	if settled {
 		t.Error("WaitQuiet should not settle while output continues")

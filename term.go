@@ -2,6 +2,7 @@ package goterm
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -36,15 +37,22 @@ type Term struct {
 	// go through Send so the blocking policy lives in one place.
 	Out chan []byte
 
-	mu        sync.Mutex  // guards Write and screen reads while an application runs on the PTY
-	pty       *ptySession // the running application, if any (see Start)
-	lastWrite time.Time   // time of the most recent Write, for WaitQuiet
+	mu  sync.Mutex  // guards Write and screen reads while an application runs on the PTY
+	pty *ptySession // the running application, if any (see Start)
+	// lastActivity is the UnixNano of the most recent Write or Send, for
+	// WaitQuiet.  It is atomic, not guarded by mu, because Send updates it from
+	// within Write (DSR/DA responses) while mu is held.
+	lastActivity atomic.Int64
 }
+
+// touch records activity now, so WaitQuiet measures idle time from this point.
+func (t *Term) touch() { t.lastActivity.Store(time.Now().UnixNano()) }
 
 // Send writes data onto the terminal's return stream (Out).  It is the single
 // choke point for Out sends so the blocking/draining policy can evolve in one
 // place; for now it is a plain buffered send.
 func (t *Term) Send(data []byte) {
+	t.touch() // input activity resets the WaitQuiet idle clock
 	t.Out <- data
 }
 
@@ -59,8 +67,8 @@ func New(rows, cols int) *Term {
 		Primary:   NewScreen(rows, cols),
 		Alternate: NewScreen(rows, cols),
 		Out:       make(chan []byte, chanBuf),
-		lastWrite: time.Now(), // not the zero Time, so WaitQuiet measures from now
 	}
+	t.touch() // so WaitQuiet does not read the zero time as long-idle
 	t.Primary.term = t
 	t.Alternate.term = t
 	t.Current = t.Primary
