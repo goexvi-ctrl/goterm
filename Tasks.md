@@ -35,8 +35,10 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   prints runes with deferred wrap and InsertMode, routes C0 controls and
   escapes through funcMap.  put()/index() added to Screen.
 
+* TESTED - Device reports onto Out (via Term.Send): DSR 5 (ESC[0n), DSR 6 (CPR
+  ESC[row;colR), and primary DA (ESC[?6c, basic VT102 class).
+
 ## Pending
-* Query responses onto Out: DSR (\E[6n -> CPR) and DA (\E[c), using Term.Send.
 * Cross-Write partial sequences: buffer the unconsumed tail for the next Write.
 * UTF-8: the vendored ansi decoder treats 0x80-0x9f as C1; make it UTF-8 aware
   (put() already takes full runes).

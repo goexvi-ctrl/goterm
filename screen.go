@@ -1,6 +1,7 @@
 package goterm
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -517,6 +518,14 @@ func (s *Screen) setModes(p Params, on bool) {
 	}
 }
 
+// respond sends bytes back to the program on the owning Term's return stream.
+// A standalone screen with no Term has nowhere to reply, so it is a no-op.
+func (s *Screen) respond(b []byte) {
+	if s.term != nil {
+		s.term.Send(b)
+	}
+}
+
 // switchAlternate enters (on=true) or exits the alternate screen via the owning
 // Term.  When restore is true the primary's cursor is preserved across the
 // round trip (?1049 semantics).  It is a no-op for a standalone screen with no
@@ -673,4 +682,24 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	// IRM (4); other modes are ignored.
 	ansi.SM: func(s *Screen, p Params) { s.setModes(p, true) },
 	ansi.RM: func(s *Screen, p Params) { s.setModes(p, false) },
+
+	// Device reports.  These answer on the Term's return stream so a program
+	// querying the terminal at startup does not block.
+	//
+	// DSR 5 reports "terminal OK" (ESC[0n); DSR 6 reports the 1-based cursor
+	// position (CPR, ESC[row;colR).
+	ansi.DSR: func(s *Screen, p Params) {
+		switch p.Int(0) {
+		case 5:
+			s.respond([]byte("\x1b[0n"))
+		case 6:
+			s.respond([]byte(fmt.Sprintf("\x1b[%d;%dR", s.ClampRow(s.Row)+1, s.ClampCol(s.Col)+1)))
+		}
+	},
+	// Primary Device Attributes: report a basic VT102-class terminal (ESC[?6c).
+	ansi.DA: func(s *Screen, p Params) {
+		if q := p.Str(0); q == "" || q == "0" {
+			s.respond([]byte("\x1b[?6c"))
+		}
+	},
 }

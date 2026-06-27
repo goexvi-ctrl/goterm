@@ -3,6 +3,8 @@ package goterm
 import (
 	"io"
 	"testing"
+
+	"github.com/pborman/ansi"
 )
 
 // Term must satisfy io.Writer.
@@ -169,6 +171,57 @@ func TestWriteBell(t *testing.T) {
 	tm.Write([]byte("a\ab"))
 	if tm.Bell != 1 {
 		t.Errorf("Bell = %d, want 1", tm.Bell)
+	}
+}
+
+func TestWriteDSRCursorPosition(t *testing.T) {
+	tm := New(24, 80)
+	// Move the cursor, then query its position; the reply is 1-based.
+	tm.Write([]byte("\x1b[3;4H\x1b[6n"))
+	if got := string(<-tm.Out); got != "\x1b[3;4R" {
+		t.Errorf("CPR = %q, want %q", got, "\x1b[3;4R")
+	}
+	// The query itself must not print to the screen.
+	if line := tm.Current.Dump()[2]; line != "" {
+		t.Errorf("query printed to screen: row 2 = %q", line)
+	}
+}
+
+func TestWriteDSRStatus(t *testing.T) {
+	tm := New(5, 10)
+	tm.Write([]byte("\x1b[5n"))
+	if got := string(<-tm.Out); got != "\x1b[0n" {
+		t.Errorf("DSR 5 reply = %q, want %q", got, "\x1b[0n")
+	}
+}
+
+func TestWriteDA(t *testing.T) {
+	tm := New(5, 10)
+	tm.Write([]byte("\x1b[c"))
+	if got := string(<-tm.Out); got != "\x1b[?6c" {
+		t.Errorf("DA reply = %q, want %q", got, "\x1b[?6c")
+	}
+}
+
+func TestDeviceReportStandaloneNoop(t *testing.T) {
+	// A standalone screen has no return stream; the reports must not panic.
+	s := NewScreen(5, 10)
+	funcMap[ansi.DSR](s, Params{"6"})
+	funcMap[ansi.DA](s, Params{"0"})
+}
+
+func TestWriteDump(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("hi\r\nthere"))
+	got := tm.Current.Dump()
+	want := []string{"hi", "there", ""}
+	if len(got) != len(want) {
+		t.Fatalf("Dump returned %d rows, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("Dump row %d = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 
