@@ -84,6 +84,8 @@ type Screen struct {
 	CursorVisible bool // DECTCEM (?25): cursor is shown
 	AutoWrap      bool // DECAWM (?7): wrap to the next line at the right margin
 	InsertMode    bool // IRM (4): printed characters shift the line right
+
+	term *Term // owning terminal, if any (set by NewTerm); nil for a standalone screen
 	// TODO: Add scrolling regions
 }
 
@@ -470,10 +472,36 @@ func (s *Screen) setModes(p Params, on bool) {
 			s.AutoWrap = on
 		case private && m == 25: // DECTCEM
 			s.CursorVisible = on
+		case private && m == 1049: // alternate screen with cursor save/restore
+			s.switchAlternate(on, true)
+		case private && (m == 47 || m == 1047): // alternate screen
+			s.switchAlternate(on, false)
 		case !private && m == 4: // IRM
 			s.InsertMode = on
 		}
 	}
+}
+
+// switchAlternate enters (on=true) or exits the alternate screen via the owning
+// Term.  When save is true the cursor is saved on entry and restored on exit
+// (?1049 semantics).  It is a no-op for a standalone screen with no Term.
+func (s *Screen) switchAlternate(on, save bool) {
+	if s.term == nil {
+		return
+	}
+	if on {
+		s.term.enterAlternate(save)
+	} else {
+		s.term.exitAlternate(save)
+	}
+}
+
+// clear blanks every cell using the current pen and moves the cursor home.
+func (s *Screen) clear() {
+	for r := 0; r < s.Rows; r++ {
+		s.fill(r, 0, s.Cols-1)
+	}
+	s.Row, s.Col = 0, 0
 }
 
 // funcMap is a map of ansi.Names to functions that implement that escape

@@ -23,12 +23,13 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - Select Graphic Rendition: SGR (attributes + 8/16/256 colors).
 * TESTED - Flag modes (SM/RM): DECTCEM (?25), DECAWM (?7), IRM (4).  Stored
   as flags for the future write/render path.
+* TESTED - Alternate screen buffer (SM/RM ?1049, ?47, ?1047): Term wraps a
+  primary and alternate Screen with a Current pointer; ?1049 saves/clears on
+  entry and restores on exit.
 
 ## Deferred / out of scope
 * Save/restore cursor (DECSC/DECRC, ESC[s/u): not exported by pborman/ansi;
   needs custom handling.
-* Alternate screen buffer (SM/RM ?1049, ?47, ?1047): needs a second Line
-  buffer plus save/restore-and-swap.
 * Truecolor SGR (38;2;r;g;b / 48;2): Cell stores a palette index only.
 * Scrolling regions (DECSTBM): operations currently act on the full screen.
 * REP (repeat): depends on the write path.
