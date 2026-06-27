@@ -25,6 +25,37 @@ func TestPTYCat(t *testing.T) {
 	}
 }
 
+func TestWaitQuietSettles(t *testing.T) {
+	tm := New(5, 10)
+	tm.Write([]byte("x"))
+	if !tm.WaitQuiet(30*time.Millisecond, time.Second) {
+		t.Error("WaitQuiet should settle after output stops")
+	}
+}
+
+func TestWaitQuietStaysBusy(t *testing.T) {
+	tm := New(5, 10)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				tm.Write([]byte("."))
+				time.Sleep(5 * time.Millisecond)
+			}
+		}
+	}()
+	// Output every ~5ms never leaves a 50ms idle gap, so within 200ms it must
+	// not report settled.
+	settled := tm.WaitQuiet(50*time.Millisecond, 200*time.Millisecond)
+	close(done)
+	if settled {
+		t.Error("WaitQuiet should not settle while output continues")
+	}
+}
+
 // TestPTYNvi is the real goal: drive nvi through some basic editing and confirm
 // the screen matches what nvi should render.
 func TestPTYNvi(t *testing.T) {

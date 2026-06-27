@@ -1,6 +1,9 @@
 package goterm
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 // chanBuf is the buffer size for the Term's outbound channel.  Buffering lets a
 // single-goroutine test feed input that triggers a response and then read the
@@ -33,8 +36,9 @@ type Term struct {
 	// go through Send so the blocking policy lives in one place.
 	Out chan []byte
 
-	mu  sync.Mutex  // guards Write and screen reads while an application runs on the PTY
-	pty *ptySession // the running application, if any (see Start)
+	mu        sync.Mutex  // guards Write and screen reads while an application runs on the PTY
+	pty       *ptySession // the running application, if any (see Start)
+	lastWrite time.Time   // time of the most recent Write, for WaitQuiet
 }
 
 // Send writes data onto the terminal's return stream (Out).  It is the single
@@ -55,6 +59,7 @@ func New(rows, cols int) *Term {
 		Primary:   NewScreen(rows, cols),
 		Alternate: NewScreen(rows, cols),
 		Out:       make(chan []byte, chanBuf),
+		lastWrite: time.Now(), // not the zero Time, so WaitQuiet measures from now
 	}
 	t.Primary.term = t
 	t.Alternate.term = t

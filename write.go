@@ -1,6 +1,10 @@
 package goterm
 
-import "github.com/pborman/ansi"
+import (
+	"time"
+
+	"github.com/pborman/ansi"
+)
 
 // streamDecoder is configured for a modern terminal: UTF-8 text passes through
 // intact, and C0 controls are split out as their own items (Type "C0") so they
@@ -49,6 +53,7 @@ func (t *Term) Write(data []byte) (int, error) {
 			break // safety: Decode made no progress
 		}
 	}
+	t.lastWrite = time.Now()
 	return len(data), nil
 }
 

@@ -37,6 +37,9 @@ func (t *Term) Start(name string, args ...string) error {
 	}
 	stop := make(chan struct{})
 	t.pty = &ptySession{cmd: cmd, ptmx: ptmx, stop: stop}
+	t.mu.Lock()
+	t.lastWrite = time.Now() // so WaitQuiet does not read as settled before output arrives
+	t.mu.Unlock()
 
 	go t.pumpOutput(ptmx)
 	go t.forwardInput(ptmx, stop)
@@ -103,6 +106,31 @@ func (t *Term) WaitFor(timeout time.Duration, pred func(screen []string) bool) b
 	deadline := time.Now().Add(timeout)
 	for {
 		if pred(t.Dump()) {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// WaitQuiet waits until the screen has been idle -- no Write -- for at least
+// idle, returning true once it settles, or false if timeout elapses first.
+//
+// Use it after sending input that triggers a redraw, when you don't know the
+// exact result to wait for: it lets the application finish drawing.  Choose idle
+// comfortably larger than the gaps between chunks of a single redraw but smaller
+// than the time you're willing to wait.  (For a known target state, WaitFor is
+// more precise; WaitQuiet can settle early if the application is slow to begin
+// responding.)
+func (t *Term) WaitQuiet(idle, timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for {
+		t.mu.Lock()
+		quietFor := time.Since(t.lastWrite)
+		t.mu.Unlock()
+		if quietFor >= idle {
 			return true
 		}
 		if time.Now().After(deadline) {

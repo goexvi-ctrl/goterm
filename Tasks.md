@@ -74,3 +74,9 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * TESTED - nvi end to end: launch nvi, insert two lines (i...Esc, o...Esc), and
   confirm the screen renders "Hello, world" / "second line" over tildes.  This
   is the project goal: observe what an editor draws and assert on it.
+
+## Comparison harness helpers
+* TESTED - Term.WaitQuiet(idle, timeout): settle until no Write for idle (output
+  has stopped), for driving an app when the exact target screen is unknown.
+* TESTED - DiffScreens(a, b) []RowDiff and FormatDiffs: compare two Dump outputs
+  row by row for diffing one editor's screen against another.
