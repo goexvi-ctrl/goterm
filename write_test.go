@@ -228,6 +228,67 @@ func TestWriteDump(t *testing.T) {
 	}
 }
 
+func TestWriteByteAtATime(t *testing.T) {
+	tm := New(5, 10)
+	for _, b := range []byte("\x1b[2;3Hhi") {
+		tm.Write([]byte{b})
+	}
+	if got := tm.Current.Dump()[1]; got != "  hi" {
+		t.Errorf("row 1 = %q, want %q", got, "  hi")
+	}
+	if tm.Current.Row != 1 || tm.Current.Col != 4 {
+		t.Errorf("cursor = %d,%d, want 1,4", tm.Current.Row, tm.Current.Col)
+	}
+	if len(tm.pending) != 0 {
+		t.Errorf("pending not drained: %q", tm.pending)
+	}
+}
+
+func TestWriteSplitCSI(t *testing.T) {
+	tm := New(5, 10)
+	tm.Write([]byte("\x1b[3")) // truncated mid-sequence
+	if string(tm.pending) != "\x1b[3" {
+		t.Errorf("pending = %q, want %q", tm.pending, "\x1b[3")
+	}
+	tm.Write([]byte(";4H"))
+	if tm.Current.Row != 2 || tm.Current.Col != 3 {
+		t.Errorf("cursor = %d,%d, want 2,3", tm.Current.Row, tm.Current.Col)
+	}
+	if len(tm.pending) != 0 {
+		t.Errorf("pending not drained: %q", tm.pending)
+	}
+}
+
+func TestWriteSplitAfterText(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("ab\x1b[")) // text, then a truncated escape
+	if string(tm.pending) != "\x1b[" {
+		t.Errorf("pending = %q, want %q", tm.pending, "\x1b[")
+	}
+	if got := tm.Current.Dump()[0]; got != "ab" {
+		t.Errorf("row 0 = %q, want %q (text before the split must print)", got, "ab")
+	}
+	tm.Write([]byte("31mC"))
+	if got := tm.Current.Dump()[0]; got != "abC" {
+		t.Errorf("row 0 = %q, want %q", got, "abC")
+	}
+	if cell := tm.Current.Lines[0][2]; cell.Foreground != Red {
+		t.Errorf("'C' foreground = %d, want Red (pen from split SGR)", cell.Foreground)
+	}
+}
+
+func TestWriteSplitLoneEscape(t *testing.T) {
+	tm := New(3, 10)
+	tm.Write([]byte("x\x1b")) // a bare trailing ESC
+	if string(tm.pending) != "\x1b" {
+		t.Errorf("pending = %q, want ESC", tm.pending)
+	}
+	tm.Write([]byte("[1m"))
+	if tm.Current.Cur.Attributes&int(BoldMask) == 0 {
+		t.Error("bold not set after completing the split SGR")
+	}
+}
+
 func TestWriteScrollsAtBottom(t *testing.T) {
 	tm := New(2, 3)
 	// Three CRLF-separated lines on a 2-row screen scroll the first one off.

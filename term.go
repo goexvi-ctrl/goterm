@@ -24,6 +24,8 @@ type Term struct {
 
 	Bell int // count of BEL (^G) received since the last ClearBell
 
+	pending []byte // an escape sequence truncated at the end of a Write, held for the next one
+
 	// Out is the terminal's single return byte stream to the program, like the
 	// one serial line a real terminal has.  Query responses (DSR cursor
 	// position, DA) multiplex onto it along with anything else the terminal
