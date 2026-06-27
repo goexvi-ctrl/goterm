@@ -103,6 +103,23 @@ func TestAltScreenIdempotent(t *testing.T) {
 	}
 }
 
+func TestNewTermChannels(t *testing.T) {
+	tm := New(5, 10)
+	if tm.Out == nil || tm.Responses == nil {
+		t.Fatal("Out and Responses channels must be initialized")
+	}
+	// Buffered: a send must not block without a concurrent reader, and the
+	// bytes round-trip intact.
+	tm.Out <- []byte("hi")
+	tm.Responses <- []byte("\x1b[1;1R")
+	if got := string(<-tm.Out); got != "hi" {
+		t.Errorf("Out delivered %q, want %q", got, "hi")
+	}
+	if got := string(<-tm.Responses); got != "\x1b[1;1R" {
+		t.Errorf("Responses delivered %q, want %q", got, "\x1b[1;1R")
+	}
+}
+
 func TestBell(t *testing.T) {
 	tm := New(5, 10)
 	if tm.Bell != 0 {

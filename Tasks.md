@@ -28,6 +28,8 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   entry and restores on exit.
 * TESTED - Line feed and bell: LF/IND (down one line, scroll at bottom, column
   unchanged) and BEL (increments Term.Bell; ClearBell resets it).
+* TESTED - Term outbound channels: Out (write-back) and Responses (query
+  answers), both buffered chan []byte.  Producers (parse loop, DSR/DA) pending.
 
 ## Deferred / out of scope
 * Save/restore cursor (DECSC/DECRC, ESC[s/u): not exported by pborman/ansi;
