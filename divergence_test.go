@@ -301,6 +301,14 @@ func TestDivergeRegisters(t *testing.T) {
 		{"dot-cw", sampleLines(), "cwX\x1bw.", "change word, repeat on next"},
 		{"macro", sampleLines(), "qaxjq@a", "record macro, replay"},
 		{"append-reg", sampleLines(), "\"ayyj\"Ayygg\"ap", "append to register"},
+		// Numbered delete ring and linewise count-put match nvi (regression guards).
+		{"ring", sampleLines(), "dddd\"1p\"2p", "numbered delete ring \"1 then \"2"},
+		{"yy-3p", sampleLines(), "yy3p", "linewise yank, put 3 copies"},
+		// Open divergences from the yank/register/@ wave (see GOTERM_DIVERGENCES #14-16).
+		{"put-cursor-cw", []string{"hello world"}, "yw$p", "#14 charwise put: cursor to first char (nvi) vs last (govi)"},
+		{"at-colon", sampleLines(), ":d\r@:", "#15 @: is a no-op in nvi; govi corrupts the buffer"},
+		{"at-linewise-reg", []string{"3xjdd", "alpha beta gamma", "second line two", "third line three", "fourth line four"},
+			"\"ayyj@a", "#16 @ of a linewise reg: trailing-newline cursor move (needs a line below the dd)"},
 	}
 	mined := 0
 	for _, c := range cases {
