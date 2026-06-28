@@ -17,7 +17,8 @@ import (
 //
 // The goal is a report, not a pass/fail gate: govi is a work in progress and is
 // expected to differ in places.  Confirmed, reproducible divergences are
-// curated into DIVERGENCES.md.
+// curated into GOTERM_DIVERGENCES.md in the govi source tree
+// (/Users/claude/src/nvi/govi), the single divergence catalog.
 
 const (
 	goviPath = "/Users/claude/bin/govi"
