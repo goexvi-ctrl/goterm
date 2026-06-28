@@ -161,3 +161,53 @@ func cursorStr(t *Term) string {
 	r, c := t.Cursor()
 	return fmt.Sprintf("%d,%d", r, c)
 }
+
+// TestGoviClearsWithErase guards the forked tcell fix: clearing a line must emit
+// a real erase (cells come through Erased=true) rather than overwriting the line
+// with spaces (Erased=false) -- the upstream-tcell breakage that, e.g., makes a
+// terminal cut-and-paste grab trailing spaces.  The Cell.Erased flag is what lets
+// us tell the two apart; plain text (Dump) cannot.  nvi is checked too as the
+// reference for correct behavior.  Skips if either editor binary is absent.
+func TestGoviClearsWithErase(t *testing.T) {
+	for _, p := range []string{nviPath, goviPath} {
+		if _, err := os.Stat(p); err != nil {
+			t.Skipf("%s not available", p)
+		}
+	}
+	const cleared = 16 // width of the line of X's that gets deleted
+	file := writeLines(t, []string{"XXXXXXXXXXXXXXXX"})
+
+	open := func(path string) *Term {
+		tm := New(6, 24)
+		if err := tm.Start(path, file); err != nil {
+			t.Fatalf("start %s: %v", path, err)
+		}
+		return tm
+	}
+	nvi := open(nviPath)
+	govi := open(goviPath)
+	pair := editorPair{A: nvi, B: govi}
+	defer pair.close()
+	if !pair.waitReady(func(d []string) bool { return d[0] != "" }) {
+		t.Fatal("editors did not load the file")
+	}
+	pair.settle()
+
+	// The X's are written (Erased=false) on load; delete them with 0D.
+	pair.send([]byte("0D"))
+	pair.settle()
+
+	check := func(name string, tm *Term) {
+		row := tm.Snapshot()[0]
+		for c := 0; c < cleared; c++ {
+			if row[c].Value != " " {
+				t.Errorf("%s: col %d not blank after 0D: %q", name, c, row[c].Value)
+			}
+			if !row[c].Erased {
+				t.Errorf("%s: col %d cleared with a written space, not an erase (tcell regression)", name, c)
+			}
+		}
+	}
+	check("nvi", nvi)
+	check("govi", govi)
+}

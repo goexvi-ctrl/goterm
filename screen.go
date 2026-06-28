@@ -102,20 +102,29 @@ type Cell struct {
 	Background int
 	Attributes int  // Bit field of attributes
 	Wide       bool // Wide character suffix
+	// Erased marks a cell that has not had a glyph written to it: the initial
+	// screen, and any cell vacated by an erase/scroll/insert/delete.  An erased
+	// cell still carries the pen's colors and attributes (so erasing inside a
+	// colored region keeps that background), but is distinguishable from a space
+	// that an application actually wrote.  put() clears it when a glyph lands.
+	Erased bool
 }
 
-// defaultCell returns a blank cell with the default colors and no attributes.
+// defaultCell returns a blank, erased cell with the default colors and no
+// attributes.
 func defaultCell() Cell {
-	return Cell{Value: " ", Foreground: DefaultForeground, Background: DefaultBackground}
+	return Cell{Value: " ", Foreground: DefaultForeground, Background: DefaultBackground, Erased: true}
 }
 
-// blank returns a blank cell using the screen's current graphic rendition.
+// blank returns an erased cell using the screen's current graphic rendition.
 // Erase and insert operations fill vacated positions with this cell so that
-// they adopt the current background color and attributes.
+// they adopt the current background color and attributes while remaining
+// distinguishable from a written space.
 func (s *Screen) blank() Cell {
 	c := s.Cur
 	c.Value = " "
 	c.Wide = false
+	c.Erased = true
 	return c
 }
 
@@ -305,11 +314,13 @@ func (s *Screen) put(r rune) {
 	}
 	lead := s.blank()
 	lead.Value = string(r)
+	lead.Erased = false
 	s.Lines[s.Row][s.Col] = lead
 	for i := 1; i < w && s.Col+i < s.Cols; i++ {
 		cont := s.blank()
 		cont.Value = ""
 		cont.Wide = true
+		cont.Erased = false
 		s.Lines[s.Row][s.Col+i] = cont
 	}
 	s.Col += w

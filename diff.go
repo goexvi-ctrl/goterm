@@ -73,6 +73,10 @@ func (d CellDiff) String() string {
 // including colors and attributes, which DiffScreens ignores -- and returns the
 // differing cells in row-major order.  Ragged sizes are compared against the
 // zero Cell.  It returns nil when the snapshots are identical.
+//
+// The Erased flag is provenance, not a visible difference (an erased space and a
+// written space look identical), so it is excluded from the comparison; DiffCells
+// reports only differences the eye would see.
 func DiffCells(a, b [][]Cell) []CellDiff {
 	nrows := len(a)
 	if len(b) > nrows {
@@ -99,7 +103,10 @@ func DiffCells(a, b [][]Cell) []CellDiff {
 			if c < len(rb) {
 				cb = rb[c]
 			}
-			if ca != cb {
+			// Erased is invisible provenance; compare only the visible rendition.
+			va, vb := ca, cb
+			va.Erased, vb.Erased = false, false
+			if va != vb {
 				diffs = append(diffs, CellDiff{Row: r, Col: c, A: ca, B: cb})
 			}
 		}

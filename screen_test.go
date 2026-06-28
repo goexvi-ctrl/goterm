@@ -164,6 +164,48 @@ func TestBlankUsesPen(t *testing.T) {
 	if b.Attributes != int(BoldMask) {
 		t.Errorf("blank Attributes = %d, want %d", b.Attributes, int(BoldMask))
 	}
+	if !b.Erased {
+		t.Errorf("blank cell should be Erased")
+	}
+}
+
+// TestErasedFlag exercises the lifecycle of Cell.Erased: a fresh screen is all
+// erased, writing a glyph clears the flag, and an erase command sets it again
+// while keeping the pen's background color.
+func TestErasedFlag(t *testing.T) {
+	s := NewScreen(2, 5)
+	// A fresh screen is entirely erased.
+	for r := range s.Lines {
+		for c, cell := range s.Lines[r] {
+			if !cell.Erased {
+				t.Fatalf("fresh cell (%d,%d) not Erased", r, c)
+			}
+		}
+	}
+	// Writing a glyph clears Erased on that cell; its neighbor stays erased.
+	s.put('X')
+	if s.Lines[0][0].Erased {
+		t.Errorf("written cell still Erased")
+	}
+	if !s.Lines[0][1].Erased {
+		t.Errorf("untouched neighbor should remain Erased")
+	}
+	// A written space is NOT erased -- distinguishable from a blank.
+	s.put(' ')
+	if s.Lines[0][1].Erased {
+		t.Errorf("written space should not be Erased")
+	}
+	// Erasing the line under a colored pen marks cells Erased but keeps the bg.
+	s.Cur.Background = Blue
+	funcMap[ansi.EL](s, Params{"2"}) // erase whole line
+	for c, cell := range s.Lines[0] {
+		if !cell.Erased {
+			t.Errorf("erased cell (0,%d) not Erased", c)
+		}
+		if cell.Background != Blue {
+			t.Errorf("erased cell (0,%d) bg = %d, want %d (pen kept)", c, cell.Background, Blue)
+		}
+	}
 }
 
 func TestCellHoldsCluster(t *testing.T) {
