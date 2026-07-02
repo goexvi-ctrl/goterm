@@ -1,0 +1,69 @@
+^A search forward for word under cursor
+^B page backward
+^D scroll down half screen
+^E scroll down one line
+^F page forward
+^G file information
+^H h move left
+^J ^N j move down
+^K ^P k move up
+^L ^R repaint screen
+^M + next line, first non-blank
+- previous line, first non-blank
+^T tag pop
+^U scroll up half screen
+^Y scroll up one line
+^Z suspend editor (terminal)
+^] tag push
+^^ alternate file
+: ex command line
+/ search forward
+? search backward
+n repeat last search
+N reverse last search
+! filter through shell
+# increment/decrement number
+$ end of line
+0 beginning of line
+^ first non-blank on line
+| column
+% match bracket
+& repeat substitute
+( ) sentence
+{ } paragraph
+[[ section backward
+]] section forward
+; repeat last f/F/t/T
+, reverse last f/F/t/T
+. repeat last change
+< shift left
+> shift right
+@ execute register
+~ toggle case
+` ' marks
+a A i I o O insert text
+b B w W e E word motions
+c C d D s S y Y change/delete/yank
+f F t T find character in line
+G goto line
+H M L screen line
+J join lines
+m set mark
+p P put
+Q ex mode
+r R replace
+U restore line
+u undo
+x X delete character
+z reposition screen
+ZZ ZQ write-quit / quit
+--- insert mode ---
+^@ (NUL) replay previous insertion
+^D shift left
+^T shift right
+^H erase delete previous character
+^V quote next character
+^W delete previous word
+^X[hex] insert a Unicode code point (up to 6 hex digits)
+^Z suspend (leave insert mode)
+<esc> end insert

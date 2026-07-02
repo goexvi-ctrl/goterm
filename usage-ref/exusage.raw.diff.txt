@@ -1,0 +1,137 @@
+--- nvi.exusage.txt	2026-06-28 06:31:42
++++ govi.exusage.txt	2026-06-28 06:31:44
+@@ -1,79 +1,55 @@
+-          ^D: scroll lines
+-           !: filter lines through commands or run commands
+-           #: display numbered lines
+-           &: repeat the last subsitution
+-           *: execute a buffer
+-           <: shift lines left
+-           =: display line number
+-           >: shift lines right
+-           @: execute a buffer
+-      append: append input to a line
+-  abbreviate: specify an input abbreviation
+-        args: display file argument list
+-          bg: put a foreground screen into the background
+-      change: change lines to input
+-          cd: change the current directory
+-       chdir: change the current directory
+-        copy: copy lines elsewhere in the file
+-      cscope: create a set of tags using a cscope command
+-      delete: delete lines from the file
+-     display: display buffers, connections, screens or tags
+-     [Ee]dit: begin editing another file
+-       [Ee]x: begin editing another file
+-     exusage: display ex command usage statement
+-        file: display (and optionally set) file name
+-       [Ff]g: bring a backgrounded screen into the foreground
+-      global: execute a global command on lines matching an RE
+-        help: display help statement
+-      insert: insert input before a line
+-        join: join lines into a single line
+-           k: mark a line position
+-        list: display lines in an unambiguous form
+-        move: move lines elsewhere in the file
+-        mark: mark a line position
+-         map: map input or commands to one or more keys
+-      mkexrc: write a .exrc file
+-     [Nn]ext: edit (and optionally specify) the next file
+-      number: change display to number lines
+-        open: enter "open" mode (not implemented)
+-       print: display lines
+-        perl: run the perl interpreter with the command
+-      perldo: run the perl interpreter with the command, on each line
+-    preserve: preserve an edit session for recovery
+- [Pp]revious: edit the previous file in the file argument list
+-         put: append a cut buffer to the line
+-        quit: exit ex/vi
+-        read: append input from a command or file to the line
+-     recover: recover a saved file
+-      resize: grow or shrink the current screen
+-      rewind: re-edit all the files in the file argument list
+-           s: substitute on lines matching an RE
+-      script: run a shell in a screen
+-         set: set options (use ":set all" to see all options)
+-       shell: suspend editing and run a shell
+-      source: read a file of ex commands
+-        stop: suspend the edit session
+-     suspend: suspend the edit session
+-           t: copy lines elsewhere in the file
+-      [Tt]ag: edit the file containing the tag
+-     tagnext: move to the next tag
+-      tagpop: return to the previous group of tags
+-     tagprev: move to the previous tag
+-      tagtop: discard all tags
+-         tcl: run the tcl interpreter with the command
+-        undo: undo the most recent change
+-unabbreviate: delete an abbreviation
+-       unmap: delete an input or command map
+-           v: execute a global command on lines NOT matching an RE
+-     version: display the program version information
+-      visual: enter visual (vi) mode from ex mode
+-   [Vv]isual: edit another file (from vi mode only)
+-     viusage: display vi key usage statement
+-      vsplit: split the current screen vertically
+-       write: write the file
+-          wn: write the file and switch to the next file
+-          wq: write the file and exit
+-         xit: exit
+-        yank: copy lines to a cut buffer
+-           z: display different screens of the file
+-           ~: replace previous RE with previous replacement string,
++!:              filter lines through a shell command
++&:              repeat the last substitute
++<:              shift lines left
++=:              display line number
++>:              shift lines right
++Next:           edit previous file in the argument list
++abbreviate:     define an input abbreviation
++append:         append text after line
++args:           display the argument list
++cd:             change working directory
++change:         change lines
++chdir:          change working directory
++copy:           copy lines
++delete:         delete lines
++edit:           edit a file
++exusage:        display ex command usage
++file:           display or set the file name
++global:         execute commands on matching lines
++help:           display help statement
++insert:         insert text before line
++join:           join lines
++k:              set a mark on a line
++list:           print lines with visible characters
++map:            map keys in command mode
++mark:           set a mark on a line
++move:           move lines
++next:           edit next file in the argument list
++number:         print lines with line numbers
++preserve:       preserve file in recovery directory
++previous:       edit previous file in the argument list
++print:          print lines
++put:            put buffer after line
++quit:           quit
++read:           read file after line
++recover:        recover file from recovery directory
++rewind:         edit first file in the argument list
++set:            show or set options
++shell:          run an interactive shell
++source:         read and execute ex commands from a file
++stop:           suspend the edit session
++substitute:     substitute a pattern
++suspend:        suspend the edit session
++t:              copy lines
++tag:            switch to tagged file
++unabbreviate:   remove an abbreviation
++unmap:          unmap keys
++version:        display the editor version
++vglobal:        execute commands on non-matching lines
++visual:         enter vi (visual) mode
++viusage:        display vi key usage
++wq:             write and quit
++write:          write the buffer
++xit:            write if modified and quit
++yank:           yank lines to a buffer
++~:              repeat the last substitute with the last regular expression

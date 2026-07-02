@@ -1,0 +1,172 @@
+--- nvi.viusage.txt	2026-06-28 06:31:41
++++ govi.viusage.txt	2026-06-28 06:31:43
+@@ -1,101 +1,69 @@
+-^A search forward for cursor word
+-^B scroll up by screens
+-^C interrupt an operation (e.g. read, write, search)
+-^D scroll down by half screens (setting count)
+-^E scroll down by lines
+-^F scroll down by screens
+-^G file status
+-^H move left by characters
+-^J move down by lines
+-^L redraw screen
+-^M move down by lines (to first non-blank)
+-^N move down by lines
+-^P move up by lines
+-^R redraw screen
++^A search forward for word under cursor
++^B page backward
++^D scroll down half screen
++^E scroll down one line
++^F page forward
++^G file information
++^H h move left
++^J ^N j move down
++^K ^P k move up
++^L ^R repaint screen
++^M + next line, first non-blank
++- previous line, first non-blank
+ ^T tag pop
+-^U half page up (set count)
+-^V input a literal character
+-^W move to next screen
+-^Y page up by lines
+-^Z suspend editor
+-^[ <escape> exit input mode, cancel partial commands
+- ^\ switch to ex mode
+-^] tag push cursor word
+-^^ switch to previous file
+-   <space> move right by columns
+- ! filter through command(s) to motion
+- # number increment/decrement
+- $ move to last column
+- % move to match
+- & repeat substitution
+- ' move to mark (to first non-blank)
+- ( move back sentence
+- ) move forward sentence
+- + move down by lines (to first non-blank)
+- , reverse last F, f, T or t search
+- - move up by lines (to first non-blank)
+- . repeat the last command
+- / search forward
+- 0 move to first character
+- : ex command
+- ; repeat last F, f, T or t search
+- < shift lines left to motion
+- > shift lines right to motion
+- ? search backward
+- @ execute buffer
+- A append to the line
+- B move back bigword
+- C change to end-of-line
+- D delete to end-of-line
+- E move to end of bigword
+- F character in line backward search
+- G move to line
+- H move to count lines from screen top
+- I insert before first nonblank
+- J join lines
+- L move to screen bottom
+- M move to screen middle
+- N reverse last search
+- O insert above line
+- P insert before cursor from buffer
+- Q switch to ex mode
+- R replace characters
+- S substitute for the line(s)
+- T before character in line backward search
+- U Restore the current line
+- W move to next bigword
+- X delete character before cursor
+- Y copy line
+-ZZ save file and exit
+-[[ move back section
+-]] move forward section
+- ^ move to first non-blank
+- _ move to first non-blank
+- ` move to mark
+- a append after cursor
+- b move back word
+- c change to motion
+- d delete to motion
+- e move to end of word
+- f character in line forward search
+- h move left by columns
+- i insert before cursor
+- j move down by lines
+- k move up by lines
+- l move right by columns
+- m set mark
+- n repeat last search
+- o append after line
+- p insert after cursor from buffer
+- r replace character
+- s substitute character
+- t before character in line forward search
+- u undo last change
+- w move to next word
+- x delete character
+- y copy text to motion into a cut buffer
+- z reposition the screen
+- { move back paragraph
+- | move to column
+- } move forward paragraph
+- ~ reverse case
++^U scroll up half screen
++^Y scroll up one line
++^Z suspend editor (terminal)
++^] tag push
++^^ alternate file
++: ex command line
++/ search forward
++? search backward
++n repeat last search
++N reverse last search
++! filter through shell
++# increment/decrement number
++$ end of line
++0 beginning of line
++^ first non-blank on line
++| column
++% match bracket
++& repeat substitute
++( ) sentence
++{ } paragraph
++[[ section backward
++]] section forward
++; repeat last f/F/t/T
++, reverse last f/F/t/T
++. repeat last change
++< shift left
++> shift right
++@ execute register
++~ toggle case
++` ' marks
++a A i I o O insert text
++b B w W e E word motions
++c C d D s S y Y change/delete/yank
++f F t T find character in line
++G goto line
++H M L screen line
++J join lines
++m set mark
++p P put
++Q ex mode
++r R replace
++U restore line
++u undo
++x X delete character
++z reposition screen
++ZZ ZQ write-quit / quit
++--- insert mode ---
++^@ (NUL) replay previous insertion
++^D shift left
++^T shift right
++^H erase delete previous character
++^V quote next character
++^W delete previous word
++^X[hex] insert a Unicode code point (up to 6 hex digits)
++^Z suspend (leave insert mode)
++<esc> end insert
