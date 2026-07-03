@@ -71,6 +71,12 @@ Status: NEW | STARTED | CODED | TESTED | DONE
   /bin/cat echoes typed input onto the screen.
 * TESTED - Start advertises TERM=ansi (this emulator implements the ansi
   terminfo) so applications emit sequences we support.
+* TESTED - Start now advertises the emulator's own terminal type "goterm"
+  (ansi plus smcup/rmcup), compiled with tic at first use into a TERMINFO dir
+  (terminfo.go; falls back to TERM=ansi without tic).  Plain ansi hid every
+  alternate-screen bug: editors never emitted ?1049.  AltScreenActive() exposes
+  which buffer is live; TestParityTermState pins vi-on-alternate-screen /
+  ex-off-it and restore-on-quit for both editors.
 * TESTED - nvi end to end: launch nvi, insert two lines (i...Esc, o...Esc), and
   confirm the screen renders "Hello, world" / "second line" over tildes.  This
   is the project goal: observe what an editor draws and assert on it.

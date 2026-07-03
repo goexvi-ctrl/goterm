@@ -61,6 +61,16 @@ func (t *Term) ClearBell() {
 	t.Bell = 0
 }
 
+// AltScreenActive reports whether the application currently has the alternate
+// screen buffer active (?1049/?47/?1047). Under the goterm terminal type a
+// full-screen editor runs on the alternate screen and must restore the
+// primary on exit.
+func (t *Term) AltScreenActive() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.Current == t.Alternate
+}
+
 // New returns a Term of the given size with the primary screen active.
 func New(rows, cols int) *Term {
 	t := &Term{
