@@ -110,6 +110,12 @@ func startEditorFile(t *testing.T, path, file string, rows, cols int) *Term {
 // forward (window-2 lines, cursor to the top of the new page), while govi leaves
 // the view in place and only moves the cursor.  ^B/^D/^U then compound it.
 func TestCompareScroll(t *testing.T) {
+	// Both editors open the SAME fixture: disable the advisory file lock
+	// (govi implements nvi's flock, #45) or the lock-race loser sits at a
+	// "Press any key" prompt that eats the first sent byte ("1G" -> "G").
+	// Which editor loses alternated run to run once the goterm terminfo
+	// gained xenl/REP and shifted startup timing (2026-07-03 QA review).
+	t.Setenv("EXINIT", "set nolock")
 	file := makeNumberedFile(t, 60)
 	nvi := startEditorFile(t, "/opt/homebrew/bin/nvi", file, 12, 40)
 	defer nvi.Close()
@@ -120,6 +126,10 @@ func TestCompareScroll(t *testing.T) {
 	if !pair.waitReady(func(d []string) bool { return d[len(d)-1] != "" }) {
 		t.Fatal("editors did not finish loading the file")
 	}
+	// Let startup output finish before the first send: the status line can be
+	// populated a beat before nvi reads input, and a key sent in that window
+	// is swallowed ("1G" decays to "G"). Same order as runDivCase.
+	pair.settle()
 
 	body := func(d []string) []string { return d[:len(d)-1] } // drop the status line
 	report := func(label string) {

@@ -113,3 +113,15 @@ Status: NEW | STARTED | CODED | TESTED | DONE
 * NOTE - status messages differ cosmetically (nvi "new file: line 1" /
   "unmodified: line 1"; govi "N lines, M characters"); error messages: nvi adds
   a trailing period and uses reverse video, govi neither.  Lower priority.
+* TESTED - 2026-07-03 QA review battery (qa_test.go): TestQACompound/Wrap/
+  Edge/ExEdge/Disk, 117 probes over compound operations, wrapped-line
+  behavior, boundary conditions, ex corners, and on-disk write-back.
+  Adjudicated findings live in the govi tree: govi/qa/REPORT.md (untracked
+  by design).  Three harness bugs found and fixed along the way: the goterm
+  terminfo entry now declares xenl (the emulator does deferred wrap; without
+  the flag ncurses desynced on exactly-full-width lines), the emulator now
+  implements REP / CSI Ps b (ncurses compresses repeated-character runs via
+  the ansi rep capability; TestWriteRepeat), and TestCompareScroll now sets
+  EXINIT="set nolock" plus a settle before its first send (shared-fixture
+  lock race ate the first keystroke about half the time once the terminfo
+  change shifted startup timing).

@@ -15,12 +15,20 @@ import (
 // never emitted alternate-screen switches and nothing could catch, e.g., an
 // editor that quit without restoring the primary screen.
 //
+// The entry also declares xenl: the emulator implements vt100-style DEFERRED
+// wrap (writing the last column leaves the cursor pending, see TestWriteDeferredWrap),
+// but ansi's terminfo has am without xenl, which promises IMMEDIATE wrap.
+// Under that lie, ncurses' cursor model desynced from the emulator whenever a
+// buffer line exactly filled the screen width, scrambling the rendered rows
+// (found by the 2026-07 QA review's exact-width probes).
+//
 // The entry is compiled with tic(1) into a per-process directory on first
 // use; applications find it via TERMINFO (ncurses/nvi natively, tcell/govi
 // through its infocmp-based dynamic lookup). If tic is unavailable the
 // harness falls back to TERM=ansi and AltScreenSupported reports false.
 
 const gotermTi = `goterm|headless goterm emulator (ansi plus alternate screen),
+	xenl,
 	use=ansi,
 	smcup=\E[?1049h, rmcup=\E[?1049l,
 `

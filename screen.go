@@ -87,6 +87,11 @@ type Screen struct {
 	AutoWrap      bool // DECAWM (?7): wrap to the next line at the right margin
 	InsertMode    bool // IRM (4): printed characters shift the line right
 
+	// lastGraphic is the most recent graphic character written by put, the
+	// character REP (CSI Ps b) repeats.  The ansi/goterm terminfo advertises
+	// rep, so ncurses compresses runs of an identical character this way.
+	lastGraphic rune
+
 	term *Term // owning terminal, if any (set by New); nil for a standalone screen
 	// TODO: Add scrolling regions
 }
@@ -327,6 +332,7 @@ func (s *Screen) put(r rune) {
 	if !s.AutoWrap && s.Col > s.Cols-1 {
 		s.Col = s.Cols - 1
 	}
+	s.lastGraphic = r
 }
 
 // combine appends a zero-width mark to the glyph in the preceding cell, stepping
@@ -674,6 +680,17 @@ var funcMap = map[ansi.Name]func(*Screen, Params){
 	},
 	// ECH erases n characters starting at the cursor (default 1).
 	ansi.ECH: func(s *Screen, p Params) { s.fill(s.Row, s.Col, s.Col+p.Amt(0)-1) },
+
+	// REP repeats the preceding graphic character n times through the normal
+	// text path (so wrapping and insert mode apply as if it had been typed).
+	ansi.REP: func(s *Screen, p Params) {
+		if s.lastGraphic == 0 {
+			return
+		}
+		for i := p.Amt(0); i > 0; i-- {
+			s.put(s.lastGraphic)
+		}
+	},
 
 	// Scrolling and line feeds.  SU/SD scroll the contents without moving the
 	// cursor.  NEL moves to the start of the next line, scrolling up at the

@@ -407,3 +407,26 @@ func TestWriteScrollsAtBottom(t *testing.T) {
 		t.Errorf("row 1 = %q, want %q", d[1], "c")
 	}
 }
+
+func TestWriteRepeat(t *testing.T) {
+	// REP (CSI Ps b) repeats the preceding graphic character; the ansi/goterm
+	// terminfo advertises rep, so ncurses compresses runs this way.
+	tm := New(2, 10)
+	tm.Write([]byte("z\x1b[4b"))
+	if d := tm.Current.Dump(); d[0] != "zzzzz" {
+		t.Errorf("row 0 = %q, want %q", d[0], "zzzzz")
+	}
+	// REP with nothing preceding is a no-op.
+	tm2 := New(2, 10)
+	tm2.Write([]byte("\x1b[5b"))
+	if d := tm2.Current.Dump(); d[0] != "" {
+		t.Errorf("REP with no prior char: row 0 = %q, want empty", d[0])
+	}
+	// REP participates in wrapping like typed text.
+	tm3 := New(2, 4)
+	tm3.Write([]byte("a\x1b[5b"))
+	d := tm3.Current.Dump()
+	if d[0] != "aaaa" || d[1] != "aa" {
+		t.Errorf("wrapped REP = %q,%q, want aaaa,aa", d[0], d[1])
+	}
+}
