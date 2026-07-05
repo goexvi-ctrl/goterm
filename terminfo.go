@@ -27,10 +27,18 @@ import (
 // through its infocmp-based dynamic lookup). If tic is unavailable the
 // harness falls back to TERM=ansi and AltScreenSupported reports false.
 
+// The special-key capabilities (kich1/kdch1/kpp/knp) use the xterm sequences
+// and exist so key-mapping behavior is probeable at all: nvi seeds command
+// maps from terminfo at startup (cl/cl_term.c: kich1->i, kpp->^B, knp->^F,
+// kdch1->x) and tcell decodes input by the same entry. ansi's own kich1 is
+// the nonstandard \E[L; it is overridden here so probes can send the familiar
+// \E[2~. Without these caps the harness was structurally blind to the
+// Insert/PageUp/PageDown gap (govi qa/CORNERS.md Part C #10).
 const gotermTi = `goterm|headless goterm emulator (ansi plus alternate screen),
 	xenl,
 	use=ansi,
 	smcup=\E[?1049h, rmcup=\E[?1049l,
+	kich1=\E[2~, kdch1=\E[3~, kpp=\E[5~, knp=\E[6~,
 `
 
 var (
