@@ -269,6 +269,11 @@ func TestCoverageMultiFile(t *testing.T) {
 		{"rewind", ":n then :rew rewinds to first", ":n\r:rew\r"},
 		{"alt", ":n then ^^ to alternate (first)", ":n\r\x1e"},
 		{"edit", ":e second file", ":e " + f2 + "\r"},
+		// The '.' dot buffer must survive a file switch (nvi v_init.c: "User
+		// can replay the last input"). dw in file one, :n! past the unsaved
+		// change, then '.' repeats dw in file two. :n! (not :n) because the dw
+		// leaves file one modified and a plain :n would refuse the switch.
+		{"dot-next", "dw, :n!, . repeats dw in next file", "dw:n!\r."},
 	}
 	for _, c := range cases {
 		if runArgs(t, c.name, c.desc, c.keys, 24, 80, f1, f2) {
