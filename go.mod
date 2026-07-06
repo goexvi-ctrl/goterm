@@ -1,4 +1,4 @@
-module goterm
+module github.com/goexvi-ctrl/goterm
 
 go 1.26.1
 
