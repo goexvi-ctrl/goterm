@@ -54,7 +54,7 @@ func capCellDiffs(d []CellDiff, n int) []CellDiff {
 // It is a comparison report: it logs the differences rather than asserting the
 // editors are identical (they legitimately differ while govi is in progress).
 func TestCompareGoviNvi(t *testing.T) {
-	nvi := startEditor(t, "/opt/homebrew/bin/nvi")
+	nvi := startEditor(t, "/Users/claude/src/nvi/build.unix/vi")
 	govi := startEditor(t, "/Users/claude/bin/govi")
 	pair := editorPair{A: nvi, B: govi}
 	defer pair.close()
@@ -117,7 +117,7 @@ func TestCompareScroll(t *testing.T) {
 	// gained xenl/REP and shifted startup timing (2026-07-03 QA review).
 	t.Setenv("EXINIT", "set nolock")
 	file := makeNumberedFile(t, 60)
-	nvi := startEditorFile(t, "/opt/homebrew/bin/nvi", file, 12, 40)
+	nvi := startEditorFile(t, "/Users/claude/src/nvi/build.unix/vi", file, 12, 40)
 	defer nvi.Close()
 	govi := startEditorFile(t, "/Users/claude/bin/govi", file, 12, 40)
 	defer govi.Close()

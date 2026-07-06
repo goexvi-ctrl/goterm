@@ -9,7 +9,7 @@ import (
 )
 
 // This file mines behavioral divergences between govi (/Users/claude/bin/govi)
-// and nvi (/opt/homebrew/bin/nvi).  Each scenario starts BOTH editors fresh on
+// and nvi (/Users/claude/src/nvi/build.unix/vi).  Each scenario starts BOTH editors fresh on
 // an identical file and terminal, sends an identical key sequence, then compares
 // the body (all rows except the status line) and the cursor position.  Starting
 // fresh per scenario avoids state bleed, so a divergence is attributable to the
@@ -22,7 +22,7 @@ import (
 
 const (
 	goviPath = "/Users/claude/bin/govi"
-	nviPath  = "/opt/homebrew/bin/nvi"
+	nviPath  = "/Users/claude/src/nvi/build.unix/vi"
 )
 
 // writeLines writes lines (newline-terminated) to a temp file and returns its

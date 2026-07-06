@@ -59,7 +59,7 @@ func TestWaitQuietStaysBusy(t *testing.T) {
 // TestPTYNvi is the real goal: drive nvi through some basic editing and confirm
 // the screen matches what nvi should render.
 func TestPTYNvi(t *testing.T) {
-	const nvi = "/opt/homebrew/bin/nvi"
+	const nvi = "/Users/claude/src/nvi/build.unix/vi"
 	if _, err := os.Stat(nvi); err != nil {
 		t.Skip("nvi not available")
 	}
